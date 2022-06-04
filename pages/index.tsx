@@ -3,7 +3,7 @@ import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 import * as React from 'react';
-import ButtonGrid from '../components/button-grid'
+import ModeSelect from '../components/mode-select'
 
 const Home: NextPage = () => {
     return (
@@ -13,7 +13,7 @@ const Home: NextPage = () => {
                 <meta name="led pattern generator" content="LED Pattern Generator"/>
                 <link rel="icon" href="/led.png"/>
             </Head>
-            <ButtonGrid/>
+            <ModeSelect/>
         </div>
     )
 }
