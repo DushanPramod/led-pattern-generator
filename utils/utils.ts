@@ -17,8 +17,8 @@ export function minDistance(A:number[], B:number[], E:number[]) {
 
         // vector AP
         const AE = [];
-        AE.push(E[0] - A[0]),
-            AE.push(E[1] - A[1]);
+        AE.push(E[0] - A[0]);
+        AE.push(E[1] - A[1]);
 
         // Variables to store dot product
         let AB_BE, AB_AE;
