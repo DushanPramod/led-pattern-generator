@@ -5,10 +5,10 @@ import { Catenary } from "catenary-curve";
 
 import ResizeObserver from "resize-observer-polyfill";
 
-import CoordinateSystem, { IDENTITY } from "./react-canvas-draw/coordinateSystem";
-import drawImage from "./react-canvas-draw/drawImage";
-import { DefaultState } from "./react-canvas-draw/interactionStateMachine";
-import makePassiveEventOption from "./react-canvas-draw/makePassiveEventOption";
+import CoordinateSystem, { IDENTITY } from "./coordinateSystem";
+import drawImage from "./drawImage";
+import { DefaultState } from "./interactionStateMachine";
+import makePassiveEventOption from "./makePassiveEventOption";
 
 function midPointBtw(p1, p2) {
   return {
