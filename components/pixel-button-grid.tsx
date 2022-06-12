@@ -43,6 +43,7 @@ const PixelButtonGrid = () => {
     //canvas display
     useEffect(()=> {
         if(rows > 0 && columns> 0) {
+            // @ts-ignore
             saveableCanvas.loadSaveData(getCanvasDisplay(statusArr, gridSize), true);
         }
     }, [rows, columns, gridSize, statusArr])
@@ -81,7 +82,7 @@ const PixelButtonGrid = () => {
 
 
 
-    const onChangeSize = (field: string, event: SelectChangeEvent) => {
+    const onChangeSize = (field: string, event: any) => {
         const value = Number(event.target.value);
 
         if (field === 'row' && rows !== value) {
@@ -220,7 +221,7 @@ const PixelButtonGrid = () => {
                             style={{maxWidth:300, marginLeft:10}}
                             value={gridSize}
                             valueLabelDisplay="auto"
-                            onChange={(event:Event, value:number) => setGridSize(value)}
+                            onChange={(event:Event, value:number|number[]) => setGridSize(value as number)}
                             aria-label="Temperature"
                             step={5}
                             marks
@@ -234,7 +235,7 @@ const PixelButtonGrid = () => {
                             style={{maxWidth:300, marginLeft:10}}
                             value={brushRadius}
                             valueLabelDisplay="auto"
-                            onChange={(event:Event, value:number) => setBrushRadius(value)}
+                            onChange={(event:Event, value:number|number[]) => setBrushRadius(value as number)}
                             aria-label="Temperature"
                             step={5}
                             marks

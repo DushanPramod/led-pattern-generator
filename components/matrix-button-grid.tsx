@@ -47,6 +47,7 @@ const MatrixButtonGrid = () => {
     //canvas display
     useEffect(()=> {
         if(rows > 0 && columns> 0) {
+            // @ts-ignore
             saveableCanvas.loadSaveData(getCanvasDisplay(statusArr, gridSize), true);
         }
     }, [rows, columns, gridSize, statusArr])
@@ -232,7 +233,7 @@ const MatrixButtonGrid = () => {
                             style={{maxWidth:300, marginLeft:10}}
                             value={gridSize}
                             valueLabelDisplay="auto"
-                            onChange={(event:Event, value:number) => setGridSize(value)}
+                            onChange={(event:Event, value:number|number[]) => setGridSize(value as number)}
                             aria-label="Temperature"
                             step={5}
                             marks
@@ -246,7 +247,7 @@ const MatrixButtonGrid = () => {
                             style={{maxWidth:300, marginLeft:10}}
                             value={brushRadius}
                             valueLabelDisplay="auto"
-                            onChange={(event:Event, value:number) => setBrushRadius(value)}
+                            onChange={(event:Event, value:number | number[]) => setBrushRadius(value as number)}
                             aria-label="Temperature"
                             step={5}
                             marks

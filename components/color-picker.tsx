@@ -32,6 +32,7 @@ const ColorPicker = (props:any) => {
     return (
         <div>
             <SketchPicker
+                // @ts-ignore
                 width={250}
                 disableAlpha={true}
                 color={selectedColor}
