@@ -6,12 +6,6 @@ import {FormControl, InputLabel, MenuItem, Select, SelectChangeEvent} from "@mui
 const ModeSelect = () => {
     const [mode, setMode] = useState('matrix');
 
-    const [methodName, setMethodName] = useState('');
-    const [arrayName, setArrayName] = useState('');
-
-    const [columns, setColumns] = useState<number>(0);
-    const [rows, setRows] = useState<number>(0);
-
     return (
         <React.Fragment>
             <FormControl sx={{ m: 1, minWidth: 120 }} size="small">
@@ -28,26 +22,7 @@ const ModeSelect = () => {
                 </Select>
             </FormControl>
 
-            {mode === 'matrix' ? <MatrixButtonGrid
-                    methodName={methodName}
-                    setMethodName={setMethodName}
-                    arrayName={arrayName}
-                    setArrayName={setArrayName}
-                    columns={columns}
-                    setColumns={setColumns}
-                    rows={rows}
-                    setRows={setRows}
-                /> :
-                <PixelButtonGrid
-                    methodName={methodName}
-                    setMethodName={setMethodName}
-                    arrayName={arrayName}
-                    setArrayName={setArrayName}
-                    columns={columns}
-                    setColumns={setColumns}
-                    rows={rows}
-                    setRows={setRows}
-                />}
+            {mode === 'matrix' ? <MatrixButtonGrid /> : <PixelButtonGrid />}
 
 
         </React.Fragment>
