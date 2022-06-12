@@ -13,12 +13,17 @@
     "@emotion/styled": "^11.8.1",
     "@mui/icons-material": "^5.8.2",
     "@mui/material": "^5.8.2",
+    "catenary-curve": "^1.0.1",
+    "hex-rgb": "^5.0.0",
+    "lazy-brush": "^1.0.1",
     "lodash": "^4.17.21",
     "next": "12.1.6",
     "react": "18.1.0",
+    "react-canvas-draw": "^1.2.1",
     "react-color": "^2.19.3",
     "react-colorful": "^5.5.1",
-    "react-dom": "18.1.0"
+    "react-dom": "18.1.0",
+    "rgb-hex": "^4.0.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.182",
