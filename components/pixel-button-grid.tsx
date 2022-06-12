@@ -10,7 +10,7 @@ import {
 import ColorPicker from './color-picker'
 import _ from "lodash";
 import {CONFIG} from "../config/config";
-import CanvasDraw from '../components/react-canvas-draw/react-canvas-draw';
+import CanvasDraw from './react-canvas-draw';
 import { minDistance, getCellCordinatesByCell, getGridLines } from '../utils/utils'
 
 const PixelButtonGrid = () => {
