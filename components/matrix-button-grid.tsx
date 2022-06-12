@@ -14,7 +14,7 @@ import {
 import RectangleIcon from '@mui/icons-material/Rectangle';
 import IconButton from "@mui/material/IconButton";
 import { minDistance, getCellCordinatesByCell, getGridLines } from '../utils/utils'
-import CanvasDraw from '../components/react-canvas-draw/index';
+import CanvasDraw from '../components/react-canvas-draw';
 import {CONFIG} from "../config/config";
 
 
