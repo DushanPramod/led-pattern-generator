@@ -672,7 +672,8 @@ export default class CanvasDraw extends PureComponent {
 
     this.clearWindow(ctx);
 
-    const gridSize = 25;
+    const gridSize = (this.props.gridSizeX + this.props.gridSizeY)/2;
+
     const { viewMin, viewMax } = this.coordSystem.canvasBounds;
     const minx = Math.floor(viewMin.x / gridSize - 1) * gridSize;
     const miny = Math.floor(viewMin.y / gridSize - 1) * gridSize;

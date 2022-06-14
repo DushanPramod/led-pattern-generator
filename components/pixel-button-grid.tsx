@@ -124,17 +124,9 @@ const PixelButtonGrid = () => {
         return JSON.stringify({
             height:rows * gridSize,
             width:columns * gridSize,
-            lines: [
-                {
-                    brushColor:CONFIG.PIXEL_CANVAS_BACKGROUND_COLOR,
-                    brushRadius: gridSize * rows/2,
-                    points:[{x:0, y:gridSize * rows/2}, {x:gridSize*columns, y:gridSize * rows/2}]
-                },
-                ...getGridLines(rows, columns, gridSize, '#ffffff'),
-                ..._.compact(_.flatten(arr).map(cell => {
+            lines: _.compact(_.flatten(arr).map(cell => {
                     if(cell.color !== '#000000') return {brushColor: cell.color, brushRadius:((gridSize/2)*0.8), points:[{x:cell.x, y:cell.y}, {x:cell.x, y:cell.y}]}
                 }))
-            ]
         })
     };
 
@@ -142,10 +134,7 @@ const PixelButtonGrid = () => {
         const data = JSON.parse(event.getSaveData());
         const {brushColor, brushRadius, points } = data.lines[data.lines.length - 1];
 
-        if(brushRadius === 1 || (brushColor === CONFIG.PIXEL_CANVAS_BACKGROUND_COLOR && brushRadius === gridSize*rows/2)) return;
-
         if(points.length===2 && points[0].x === points[1].x && points[0].y === points[1].y && _.flatten(statusArr).some(e => e.x === points[0].x && e.y === points[0].y)) return;
-
 
         const cloneStatusArr = [...statusArr];
         for (let i = 0; i < points.length - 1; i++) {
@@ -259,13 +248,14 @@ const PixelButtonGrid = () => {
                     gridLineWidth={0.5}
                     canvasWidth={gridSize * columns}
                     canvasHeight={gridSize * rows}
-                    gridColor={"rgb(0,0,0)"}
+                    gridColor={CONFIG.PIXEL_GRID_COLOR}
+                    backgroundColor={CONFIG.PIXEL_CANVAS_BACKGROUND_COLOR}
                     brushColor={selectedColor}
                     catenaryColor={"#ffffff"}
                     onChange={(event: any) => onChangeCanvas(event)}
                     hideInterface={false}
                     loadTimeOffset={5}
-                    hideGrid={true}
+                    hideGrid={false}
                     immediateLoading={true}
                 /> : ''}
             </div>

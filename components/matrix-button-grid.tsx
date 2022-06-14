@@ -117,12 +117,9 @@ const MatrixButtonGrid = () => {
         return JSON.stringify({
             height:rows * gridSize,
             width:columns * gridSize,
-            lines: [
-                ...getGridLines(rows, columns, gridSize, '#000000'),
-                ..._.compact(_.flatten(arr).map(cell => {
+            lines:_.compact(_.flatten(arr).map(cell => {
                 if(cell.status) return {brushColor: cell.status? '#ff0000' : '#4b4a4a', brushRadius:((gridSize/2)*0.8), points:[{x:cell.x, y:cell.y}, {x:cell.x, y:cell.y}]}
             }))
-            ]
         })
     };
 
@@ -135,8 +132,6 @@ const MatrixButtonGrid = () => {
     const onChangeCanvas = (event: any) => {
         const data = JSON.parse(event.getSaveData());
         const {brushColor, brushRadius, points } = data.lines[data.lines.length - 1];
-
-        if(brushRadius === 1) return;
 
         if(points.length===2 && points[0].x === points[1].x && points[0].y === points[1].y && _.flatten(statusArr).some(e => e.x === points[0].x && e.y === points[0].y)) return;
 
@@ -161,6 +156,7 @@ const MatrixButtonGrid = () => {
                 })
             })
         }
+        console.log("trig onchange")
         setStatusArr(cloneStatusArr);
     }
 
@@ -265,16 +261,17 @@ const MatrixButtonGrid = () => {
                     brushRadius={brushRadius}
                     gridSizeX={gridSize}
                     gridSizeY={gridSize}
-                    gridLineWidth={0.5}
+                    gridLineWidth={1}
                     canvasWidth={gridSize * columns}
                     canvasHeight={gridSize * rows}
-                    gridColor={"rgb(0,0,0)"}
+                    gridColor={CONFIG.MATRIX_GRID_COLOR}
+                    backgroundColor={CONFIG.MATRIX_CANVAS_BACKGROUND_COLOR}
                     brushColor={selectedColor}
                     catenaryColor={"#ffffff"}
                     onChange={(event: any) => onChangeCanvas(event)}
                     hideInterface={false}
                     loadTimeOffset={5}
-                    hideGrid={true}
+                    hideGrid={false}
                     immediateLoading={true}
                 /> : ''}
             </div>
