@@ -71,6 +71,29 @@ export function regionOf(frame: Frame, grid: Grid) {
     : { rows: frame.tile.yy, cols: frame.tile.xx }
 }
 
+/**
+ * Names of the frames that would lose lit cells if the panel shrank to `to`.
+ * Panel size is a project-wide setting, so a resize touches every frame at
+ * once — this is what the setup panel warns with before it lets one through.
+ */
+export function framesClippedBy(frames: Frame[], from: Grid, to: Grid): string[] {
+  if (to.rows >= from.rows && to.cols >= from.cols) return []
+  const out: string[] = []
+  for (const frame of frames) {
+    let lost = false
+    for (let r = 0; r < from.rows && !lost; r++) {
+      for (let c = 0; c < from.cols; c++) {
+        if ((r >= to.rows || c >= to.cols) && frame.cells[r * from.cols + c]) {
+          lost = true
+          break
+        }
+      }
+    }
+    if (lost) out.push(frame.name)
+  }
+  return out
+}
+
 // --- serialisation ---------------------------------------------------------
 
 const toBase64 = (bytes: Uint8Array) => {

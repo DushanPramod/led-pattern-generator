@@ -168,6 +168,36 @@ button:focus-visible {
   max-width: none;
 }
 
+/* --- locked panel summary --------------------------------------------- */
+
+.panel-lock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  min-height: 33px;
+}
+
+.panel-lock strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.lock-badge {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  align-self: center;
+}
+
 .pins {
   border-top: 1px solid var(--line);
   padding-top: 12px;
@@ -839,4 +869,34 @@ code {
 
 .credit a:hover {
   color: var(--accent-text);
+}
+
+/* --- labelled controls inside a toolbar -------------------------------- */
+
+/*
+ * A stacked label makes the field taller than the buttons next to it, so the
+ * control ends up hanging below the row. In a toolbar the label goes beside
+ * the control instead, which lines every box up on the same centre.
+ */
+.tools .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: none;
+}
+
+.tools .field > span {
+  white-space: nowrap;
+}
+
+/* Match the buttons: same font size means the same box height. */
+.tools .field select,
+.tools .field input {
+  width: auto;
+  font-size: 0.82rem;
+}
+
+.tools .field input[type='number'] {
+  width: 76px;
 }

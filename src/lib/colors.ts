@@ -58,6 +58,17 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+/**
+ * An unlit LED keeps a hint of its own colour so the rows stay readable while
+ * the panel is dark. Pale LEDs (white, ice blue) have to be pushed back
+ * further or an unlit white row looks lit.
+ */
+export function unlit(hex: string, background: string, extra = 0): string {
+  const [r, g, b] = toRgb(hex)
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  return mix(hex, background, Math.min(0.97, 0.87 + 0.08 * luminance + extra))
+}
+
 /** Name of the stock LED closest to an arbitrary colour, for labels and comments. */
 export function nearestPresetName(hex: string): string {
   const [r, g, b] = toRgb(hex)

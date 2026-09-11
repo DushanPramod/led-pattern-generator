@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFAULT_LED_COLOR, mix } from '../lib/colors'
+import { DEFAULT_LED_COLOR, unlit } from '../lib/colors'
 import { renderTimeline } from '../lib/simulate'
 import { useProject } from '../state/useProject'
 
 const SCREEN_BG = '#07090d'
+const MIN_DELAY = 1
+const MAX_DELAY = 10000
+
+const clampDelay = (ms: number) => Math.min(MAX_DELAY, Math.max(MIN_DELAY, Math.round(ms)))
 
 export function Preview() {
   const { project, selectedFrame } = useProject()
@@ -11,6 +15,11 @@ export function Preview() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(true)
   const [rate, setRate] = useState(1)
+  // A manual delay overrides both the per-frame speed and the rate presets.
+  // manualText keeps what is in the box so it can be cleared while typing,
+  // while manualMs holds the last usable value the preview actually runs at.
+  const [manualMs, setManualMs] = useState<number | null>(null)
+  const [manualText, setManualText] = useState('')
   const [soloFrame, setSoloFrame] = useState(false)
   const [shape, setShape] = useState<'flat' | 'round' | 'fan'>('flat')
   const [sweep, setSweep] = useState(270)
@@ -40,7 +49,8 @@ export function Preview() {
         let next = current
         let budget = acc
         for (;;) {
-          const delay = Math.max(1, (steps[next % steps.length]?.delay ?? 50) / rate)
+          const delay =
+            manualMs ?? Math.max(1, (steps[next % steps.length]?.delay ?? 50) / rate)
           if (budget < delay) break
           budget -= delay
           next = (next + 1) % steps.length
@@ -52,7 +62,7 @@ export function Preview() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [playing, rate, steps])
+  }, [playing, rate, manualMs, steps])
 
   // Round and fan modes: the panel is bent into a disc — every column becomes a
   // spoke and every row a ring, which is how the board is physically built. A
@@ -106,7 +116,7 @@ export function Preview() {
       // The colour belongs to the LEDs on that row, so it follows the row
       // wherever rimFirst puts the ring.
       const led = rowColors[r] ?? DEFAULT_LED_COLOR
-      const off = mix(led, SCREEN_BG, 0.88)
+      const off = unlit(led, SCREEN_BG)
       for (let c = 0; c < grid.cols; c++) {
         const angle = start + ((c + 0.5) / grid.cols) * arc
         const x = cx + Math.cos(angle) * radius
@@ -140,7 +150,7 @@ export function Preview() {
     const radius = Math.max(1, cell / 2 - 0.8)
     for (let r = 0; r < grid.rows; r++) {
       const led = rowColors[r] ?? DEFAULT_LED_COLOR
-      const off = mix(led, SCREEN_BG, 0.88)
+      const off = unlit(led, SCREEN_BG)
       for (let c = 0; c < grid.cols; c++) {
         const on = frameCells?.[r * grid.cols + c]
         ctx.fillStyle = on ? led : off
@@ -152,6 +162,9 @@ export function Preview() {
   }, [steps, step, grid, rowColors, shape])
 
   const current = steps[step]
+  // What the preview is really waiting between steps, which is the frame's own
+  // speed only when neither the manual box nor a rate preset is in play.
+  const shownDelay = manualMs ?? Math.max(1, Math.round((current?.delay ?? 0) / rate))
 
   return (
     <section className="panel preview">
@@ -193,14 +206,49 @@ export function Preview() {
         </div>
         <label className="field small">
           <span>Speed</span>
-          <select value={rate} onChange={(e) => setRate(Number(e.target.value))}>
-            <option value={0.25}>0.25x</option>
-            <option value={0.5}>0.5x</option>
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
-            <option value={4}>4x</option>
+          <select
+            value={manualMs == null ? String(rate) : 'manual'}
+            onChange={(e) => {
+              if (e.target.value === 'manual') {
+                // Start from whatever the preview is already running at, so
+                // switching to manual doesn't jump the speed.
+                const seed = clampDelay(Math.round((steps[step]?.delay ?? hardware.defaultSpeed) / rate))
+                setManualMs(seed)
+                setManualText(String(seed))
+              } else {
+                setManualMs(null)
+                setManualText('')
+                setRate(Number(e.target.value))
+              }
+            }}
+          >
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+            <option value="manual">Manual</option>
           </select>
         </label>
+        {manualMs != null && (
+          <label className="field small">
+            <span>ms / step</span>
+            <input
+              type="number"
+              min={MIN_DELAY}
+              max={MAX_DELAY}
+              step={5}
+              value={manualText}
+              onChange={(e) => {
+                setManualText(e.target.value)
+                const next = Number(e.target.value)
+                // An empty or half-typed box keeps the last good delay running.
+                if (e.target.value !== '' && Number.isFinite(next)) setManualMs(clampDelay(next))
+              }}
+              onBlur={() => setManualText(String(manualMs))}
+            />
+          </label>
+        )}
       </div>
 
       {shape !== 'flat' && (
@@ -243,7 +291,13 @@ export function Preview() {
       <p className="note">
         {steps.length === 0
           ? 'Add a frame to the timeline to preview it.'
-          : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${current?.delay ?? 0} ms per step`}
+          : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step${
+              manualMs != null
+                ? ` (manual, sketch uses ${current?.delay ?? 0} ms)`
+                : rate !== 1
+                  ? ` (${current?.delay ?? 0} ms at 1x)`
+                  : ''
+            }`}
       </p>
       {shape !== 'flat' && (
         <p className="note">

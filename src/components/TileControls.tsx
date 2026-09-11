@@ -48,7 +48,10 @@ export function TileControls({ frame, grid }: Props) {
 
   return (
     <section className="panel">
-      <h3>Tile &amp; drawing</h3>
+      <h3>
+        Pattern tile &amp; drawing
+        <span className="subtle"> · this frame only</span>
+      </h3>
 
       <div className="seg">
         <button
@@ -73,6 +76,12 @@ export function TileControls({ frame, grid }: Props) {
           Repeat a tile
         </button>
       </div>
+
+      <p className="note">
+        The tile is the slice of artwork stored for this frame and repeated across the{' '}
+        {grid.rows}x{grid.cols} panel, so it can differ from frame to frame. The panel size itself
+        is set once for the whole project.
+      </p>
 
       {!isFull && frame.tile !== 'full' && (
         <div className="row">

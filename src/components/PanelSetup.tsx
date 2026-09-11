@@ -2,24 +2,79 @@ import { useState } from 'react'
 import { PanelColors } from './PanelColors'
 import { useProject } from '../state/useProject'
 import { estimateSram } from '../lib/codegen'
-import { canHalfWidth, sourceCols } from '../lib/grid'
-import type { ScanOrder } from '../types'
+import { canHalfWidth, framesClippedBy, sourceCols } from '../lib/grid'
+import { colorRuns, describeColor } from '../lib/colors'
+import type { Grid, ScanOrder } from '../types'
 
 const PRESETS = [
   { label: '8 x 32', rows: 8, cols: 32, halfWidth: false },
   { label: '16 x 32', rows: 16, cols: 32, halfWidth: false },
 ]
 
+/** Short description of the LED colours, for the locked summary line. */
+function colorSummary(colors: string[]): string {
+  const runs = colorRuns(colors)
+  if (runs.length === 1) return `all ${describeColor(runs[0].hex)}`
+  if (runs.length <= 3) return runs.map((run) => describeColor(run.hex)).join(' / ')
+  return `${runs.length} colour bands`
+}
+
+/**
+ * Panel size and LED colours describe the board the whole project runs on, not
+ * one frame, so they stay locked while frames exist: unlocking is a deliberate
+ * step, and a resize that would crop artwork has to be confirmed first.
+ */
 export function PanelSetup() {
   const { project, dispatch } = useProject()
   const { grid, hardware } = project
   const [showPins, setShowPins] = useState(false)
   const [showColors, setShowColors] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
+  const [draft, setDraft] = useState(() => ({ grid, rows: String(grid.rows), cols: String(grid.cols) }))
   const sram = estimateSram(grid.rows, grid.cols, grid.halfWidth)
   const halfOk = canHalfWidth(grid)
+  const frameCount = project.frames.length
+  // With no frames there is nothing to protect, so the panel opens editable.
+  const locked = frameCount > 0 && !unlocked
 
-  const setGrid = (patch: Partial<typeof grid>) =>
-    dispatch({ type: 'setGrid', grid: { ...grid, ...patch } })
+  // Undo, a preset or an import replaces the grid, so the typed sizes follow it.
+  const resetDrafts = () => setDraft({ grid, rows: String(grid.rows), cols: String(grid.cols) })
+  if (draft.grid !== grid) resetDrafts()
+
+  // Typed sizes commit on blur or Enter, so "16" is never read as "1" mid-keystroke.
+  const setGrid = (patch: Partial<Grid>) => {
+    const merged = { ...grid, ...patch }
+    if (!Number.isFinite(merged.rows) || !Number.isFinite(merged.cols)) return resetDrafts()
+    const rows = Math.max(1, Math.min(64, Math.round(merged.rows)))
+    const cols = Math.max(1, Math.min(128, Math.round(merged.cols)))
+    const next: Grid = { rows, cols, halfWidth: merged.halfWidth }
+    if (!canHalfWidth(next)) next.halfWidth = false
+    if (rows === grid.rows && cols === grid.cols && !!next.halfWidth === !!grid.halfWidth) {
+      return resetDrafts()
+    }
+
+    const clipped = framesClippedBy(project.frames, grid, next)
+    if (clipped.length) {
+      const shown = clipped.slice(0, 4).join(', ')
+      const rest = clipped.length > 4 ? ` and ${clipped.length - 4} more` : ''
+      const where =
+        clipped.length === 1 ? shown : `${clipped.length} of them: ${shown}${rest}`
+      const ok = confirm(
+        `The panel is shared by every frame, so resizing it to ${rows} x ${cols} rescales ` +
+          `${frameCount === 1 ? 'the frame' : `all ${frameCount} frames`}.\n\n` +
+          `Artwork outside the new size is cropped on ${where}.\n\n` +
+          'Continue?',
+      )
+      if (!ok) return resetDrafts()
+    }
+    dispatch({ type: 'setGrid', grid: next })
+  }
+
+  const lock = () => {
+    setUnlocked(false)
+    setShowColors(false)
+    resetDrafts()
+  }
 
   return (
     <section className="panel setup">
@@ -32,75 +87,121 @@ export function PanelSetup() {
           />
         </label>
 
-        <label className="field">
-          <span>Rows</span>
-          <input
-            type="number"
-            min={1}
-            max={64}
-            value={grid.rows}
-            onChange={(e) => setGrid({ rows: Number(e.target.value) })}
-          />
-        </label>
+        {locked ? (
+          <>
+            <div className="field grow">
+              <span>Panel — one size and palette for the whole project</span>
+              <div className="panel-lock">
+                <span className="lock-badge" title="Fixed for every frame in this project">
+                  Locked
+                </span>
+                <strong>
+                  {grid.rows} × {grid.cols}
+                </strong>
+                <span className="subtle">
+                  · {colorSummary(project.rowColors)}
+                  {grid.halfWidth ? ' · half-width source' : ''}
+                  {frameCount === 1
+                    ? ' · applies to the whole project'
+                    : ` · applies to all ${frameCount} frames`}
+                </span>
+              </div>
+            </div>
 
-        <label className="field">
-          <span>Columns</span>
-          <input
-            type="number"
-            min={1}
-            max={128}
-            value={grid.cols}
-            onChange={(e) => setGrid({ cols: Number(e.target.value) })}
-          />
-        </label>
+            <button type="button" className="ghost" onClick={() => setUnlocked(true)}>
+              Change panel…
+            </button>
+          </>
+        ) : (
+          <>
+            <label className="field">
+              <span>Rows</span>
+              <input
+                type="number"
+                min={1}
+                max={64}
+                value={draft.rows}
+                onChange={(e) => setDraft({ ...draft, rows: e.target.value })}
+                onBlur={() => setGrid({ rows: Number(draft.rows) })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                }}
+              />
+            </label>
 
-        <div className="field">
-          <span>Presets</span>
-          <div className="chips">
-            {PRESETS.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                className={
-                  grid.rows === p.rows && grid.cols === p.cols && !!grid.halfWidth === p.halfWidth
-                    ? 'chip on'
-                    : 'chip'
-                }
-                onClick={() =>
-                  dispatch({
-                    type: 'setGrid',
-                    grid: { rows: p.rows, cols: p.cols, halfWidth: p.halfWidth },
-                  })
-                }
-              >
-                {p.label}
+            <label className="field">
+              <span>Columns</span>
+              <input
+                type="number"
+                min={1}
+                max={128}
+                value={draft.cols}
+                onChange={(e) => setDraft({ ...draft, cols: e.target.value })}
+                onBlur={() => setGrid({ cols: Number(draft.cols) })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                }}
+              />
+            </label>
+
+            <div className="field">
+              <span>Presets</span>
+              <div className="chips">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className={
+                      grid.rows === p.rows && grid.cols === p.cols && !!grid.halfWidth === p.halfWidth
+                        ? 'chip on'
+                        : 'chip'
+                    }
+                    onClick={() => setGrid({ rows: p.rows, cols: p.cols, halfWidth: p.halfWidth })}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="field check half">
+              <input
+                type="checkbox"
+                checked={!!grid.halfWidth}
+                disabled={!halfOk}
+                onChange={(e) => setGrid({ halfWidth: e.target.checked })}
+              />
+              <span title={halfOk ? undefined : 'Needs an even column count'}>Half-width source</span>
+            </label>
+
+            <button
+              type="button"
+              className={showColors ? 'ghost on' : 'ghost'}
+              onClick={() => setShowColors((v) => !v)}
+            >
+              {showColors ? 'Hide colours' : 'LED colours'}
+            </button>
+
+            {frameCount > 0 && (
+              <button type="button" className="primary" onClick={lock}>
+                Done
               </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="field check half">
-          <input
-            type="checkbox"
-            checked={!!grid.halfWidth}
-            disabled={!halfOk}
-            onChange={(e) => setGrid({ halfWidth: e.target.checked })}
-          />
-          <span title={halfOk ? undefined : 'Needs an even column count'}>Half-width source</span>
-        </label>
-
-        <button
-          type="button"
-          className={showColors ? 'ghost on' : 'ghost'}
-          onClick={() => setShowColors((v) => !v)}
-        >
-          {showColors ? 'Hide colours' : 'LED colours'}
-        </button>
+            )}
+          </>
+        )}
 
         <button type="button" className="ghost" onClick={() => setShowPins((v) => !v)}>
           {showPins ? 'Hide wiring' : 'Wiring & pins'}
         </button>
       </div>
+
+      {!locked && frameCount > 0 && (
+        <p className="note warn">
+          Panel size and LED colours belong to the project, not to a frame. Changing them here
+          rescales {frameCount === 1 ? 'the frame' : `all ${frameCount} frames`} at once, and
+          shrinking crops anything that falls outside the new size.
+        </p>
+      )}
 
       <p className={sram.fitsUno ? 'note' : 'note warn'}>
         Bit-packed buffers use <strong>{sram.arrayBytes} bytes</strong> of SRAM
@@ -115,7 +216,7 @@ export function PanelSetup() {
             : 'Too large even for a Mega (8192 B). Reduce the panel size.'}
       </p>
 
-      {showColors && <PanelColors />}
+      {!locked && showColors && <PanelColors />}
 
       {showPins && (
         <div className="row wrap pins">

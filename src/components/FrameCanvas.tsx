@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Frame, Grid } from '../types'
-import { DEFAULT_LED_COLOR, mix, withAlpha } from '../lib/colors'
+import { DEFAULT_LED_COLOR, mix, unlit, withAlpha } from '../lib/colors'
 import { regionOf } from '../lib/grid'
 import { panelView } from '../lib/simulate'
 
@@ -91,7 +91,7 @@ export function FrameCanvas({ frame, grid, rowColors, onCells }: Props) {
       // the row's own colour, pushed most of the way back into the background.
       const led = rowColors[r] ?? DEFAULT_LED_COLOR
       const lit = { in: led, out: mix(led, CANVAS_BG, 0.62) }
-      const dark = { in: mix(led, CANVAS_BG, 0.86), out: mix(led, CANVAS_BG, 0.93) }
+      const dark = { in: unlit(led, CANVAS_BG), out: unlit(led, CANVAS_BG, 0.05) }
       const core = withAlpha(mix(led, '#ffffff', 0.55), 0.55)
 
       for (let c = 0; c < grid.cols; c++) {

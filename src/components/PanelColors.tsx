@@ -24,10 +24,15 @@ export function PanelColors() {
   const [hexDraft, setHexDraft] = useState(DEFAULT_LED_COLOR)
   const anchor = useRef(0)
 
+  // Shrinking the panel leaves rows selected that no longer exist.
+  const selection = useMemo(
+    () => new Set([...selected].filter((i) => i < rows)),
+    [selected, rows],
+  )
   // An empty selection means "the whole panel", which is the common case.
-  const targets = selected.size ? selected : new Set(colors.map((_, i) => i))
-  const applyLabel = selected.size
-    ? `Apply to ${selected.size} row${selected.size > 1 ? 's' : ''}`
+  const targets = selection.size ? selection : new Set(colors.map((_, i) => i))
+  const applyLabel = selection.size
+    ? `Apply to ${selection.size} row${selection.size > 1 ? 's' : ''}`
     : 'Apply to all rows'
 
   const setColors = (next: string[]) => dispatch({ type: 'setRowColors', colors: next })
@@ -57,7 +62,17 @@ export function PanelColors() {
     })
   }
 
-  const runs = useMemo(() => colorRuns(colors), [colors])
+  const summary = useMemo(() => {
+    const runs = colorRuns(colors)
+    if (runs.length === 1) return `All ${rows} rows are ${describeColor(runs[0].hex)}.`
+    // A long list stops being readable, and the row strip above already shows it.
+    if (runs.length > 5) return `${runs.length} colour bands across ${rows} rows.`
+    const label = (run: { from: number; to: number; hex: string }) =>
+      run.from === run.to
+        ? `row ${run.from + 1} ${describeColor(run.hex)}`
+        : `rows ${run.from + 1}–${run.to + 1} ${describeColor(run.hex)}`
+    return `${runs.length} colour bands: ${runs.map(label).join(', ')}.`
+  }, [colors, rows])
 
   return (
     <div className="led-colors">
@@ -69,7 +84,7 @@ export function PanelColors() {
               <button
                 key={i}
                 type="button"
-                className={selected.has(i) ? 'row-swatch on' : 'row-swatch'}
+                className={selection.has(i) ? 'row-swatch on' : 'row-swatch'}
                 onClick={(e) => clickRow(i, e)}
                 title={`Row ${i + 1} — ${describeColor(hex)}`}
               >
@@ -93,7 +108,7 @@ export function PanelColors() {
             <button
               type="button"
               className="chip"
-              disabled={selected.size === 0}
+              disabled={selection.size === 0}
               onClick={() => setSelected(new Set())}
             >
               None
@@ -176,17 +191,7 @@ export function PanelColors() {
       </div>
 
       <p className="note">
-        {runs.length === 1
-          ? `All ${rows} rows are ${describeColor(runs[0].hex)}.`
-          : `${runs.length} colour bands: ` +
-            runs
-              .map((r) =>
-                r.from === r.to
-                  ? `row ${r.from + 1} ${describeColor(r.hex)}`
-                  : `rows ${r.from + 1}–${r.to + 1} ${describeColor(r.hex)}`,
-              )
-              .join(', ') + '.'}{' '}
-        The panel is switched one bit per LED, so colours come from the LEDs you fit on each row —
+        {summary} The panel is switched one bit per LED, so colours come from the LEDs you fit on each row —
         they change the editor and the preview, and are written into the sketch header as an
         assembly note, but never change the generated code.
       </p>
