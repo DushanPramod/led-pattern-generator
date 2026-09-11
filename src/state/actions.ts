@@ -1,0 +1,23 @@
+import type { Frame, Grid, Group, Hardware, Project, Tile } from '../types'
+
+export type Action =
+  | { type: 'setName'; name: string }
+  | { type: 'setGrid'; grid: Grid }
+  | { type: 'setHardware'; patch: Partial<Hardware> }
+  | { type: 'setRowColors'; colors: string[] }
+  | { type: 'selectFrame'; id: string | null }
+  | { type: 'addFrame'; groupId?: string }
+  | { type: 'duplicateFrame'; id: string }
+  | { type: 'deleteFrame'; id: string }
+  | { type: 'updateFrame'; id: string; patch: Partial<Omit<Frame, 'id' | 'cells'>> }
+  | { type: 'setCells'; id: string; cells: Uint8Array; coalesce?: boolean }
+  // Artwork and its tile size land together, so a preset is one undo step.
+  | { type: 'applyDesign'; id: string; cells: Uint8Array; tile: Tile; name?: string }
+  | { type: 'addGroup' }
+  | { type: 'updateGroup'; id: string; patch: Partial<Omit<Group, 'id' | 'frameIds'>> }
+  | { type: 'deleteGroup'; id: string }
+  | { type: 'moveFrame'; frameId: string; toGroupId: string; toIndex: number }
+  | { type: 'moveGroup'; id: string; delta: number }
+  | { type: 'loadProject'; project: Project }
+  | { type: 'undo' }
+  | { type: 'redo' }
