@@ -169,7 +169,7 @@ export function MemoryCheck() {
   const optimisedPatterns = options.passes.has('progmemPatternRead')
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
     <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
@@ -307,6 +307,6 @@ export function MemoryCheck() {
       status={status}
       onRecheck={() => load(true)}
     />
-    </>
+    </div>
   )
 }

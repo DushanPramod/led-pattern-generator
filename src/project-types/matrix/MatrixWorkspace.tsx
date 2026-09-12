@@ -32,7 +32,6 @@ function Workspace() {
     shape: 'fan',
     sweep: 270,
     rimFirst: false,
-    rate: 1,
     soloFrame: false,
   })
 

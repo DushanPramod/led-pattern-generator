@@ -20,7 +20,6 @@ export type PreviewView = {
   shape: 'flat' | 'round' | 'fan'
   sweep: number
   rimFirst: boolean
-  rate: number
   soloFrame: boolean
 }
 
@@ -39,7 +38,7 @@ export function Preview({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(false)
   const [rawStep, setStep] = useState(0)
-  const { shape, sweep, rimFirst, rate, soloFrame } = view
+  const { shape, sweep, rimFirst, soloFrame } = view
   const set = <K extends keyof PreviewView>(key: K, value: PreviewView[K]) =>
     onView({ ...view, [key]: value })
 
@@ -66,7 +65,7 @@ export function Preview({
         let next = current
         let budget = acc
         for (;;) {
-          const delay = Math.max(1, (steps[next % steps.length]?.delay ?? 50) / rate)
+          const delay = Math.max(1, (steps[next % steps.length]?.delay ?? 50))
           if (budget < delay) break
           budget -= delay
           next = (next + 1) % steps.length
@@ -78,7 +77,7 @@ export function Preview({
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [playing, rate, steps])
+  }, [playing, steps])
 
   // Round and fan modes: the panel is bent into a disc — every column becomes a
   // spoke and every row a ring, which is how the board is physically built. A
@@ -178,10 +177,9 @@ export function Preview({
   }, [steps, step, grid, rowColors, shape])
 
   const current = steps[step]
-  // What the preview is really waiting between steps. It is the step's real
-  // hold time only at 1x playback: the playback rate is a viewing convenience
-  // here and never reaches the sketch, unlike the frame's own speed factor.
-  const shownDelay = Math.max(1, Math.round((current?.delay ?? 0) / rate))
+  // The preview always plays at the speed set under Movement, so this is the
+  // step's real hold time on the panel.
+  const shownDelay = Math.max(1, Math.round(current?.delay ?? 0))
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
@@ -212,26 +210,6 @@ export function Preview({
           <ToggleGroupItem value="round">Round</ToggleGroupItem>
           <ToggleGroupItem value="fan">Fan</ToggleGroupItem>
         </ToggleGroup>
-        <label
-          className="flex items-center gap-1.5"
-          title="How fast this preview plays. The panel is unaffected — frame speed is set under Movement."
-        >
-          <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
-            Playback
-          </span>
-          <Select value={String(rate)} onValueChange={(v) => set('rate', Number(v))}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0.25">0.25x</SelectItem>
-              <SelectItem value="0.5">0.5x</SelectItem>
-              <SelectItem value="1">1x</SelectItem>
-              <SelectItem value="2">2x</SelectItem>
-              <SelectItem value="4">4x</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
       </div>
 
       {shape !== 'flat' && (
@@ -280,9 +258,7 @@ export function Preview({
       <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         {steps.length === 0
           ? 'Add a frame to the timeline to preview it.'
-          : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step${
-              rate !== 1 ? ` (${current?.delay ?? 0} ms on the panel)` : ''
-            }`}
+          : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step`}
       </p>
       {shape !== 'flat' && (
         <p className="m-0 text-xs leading-relaxed text-muted-foreground">
