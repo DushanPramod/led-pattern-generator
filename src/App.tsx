@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import { AboutDialog } from './components/AboutDialog'
 import { CodeView } from './components/CodeView'
 import { DesignPresets } from './components/DesignPresets'
 import { FrameCanvas } from './components/FrameCanvas'
@@ -19,6 +20,7 @@ function Workspace() {
   const { project, selectedFrame, canUndo, canRedo, dispatch } = useProject()
   const { setCells } = useFrameActions(selectedFrame?.id ?? null)
   const [tab, setTab] = useState<'preview' | 'code' | 'memory'>('preview')
+  const [about, setAbout] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -149,9 +151,10 @@ function Workspace() {
       <FrameList />
 
       <footer className="credit">
-        Built by Dushan Pramod ·{' '}
-        <a href="mailto:dushanpramod@gmail.com">dushanpramod@gmail.com</a>
+        <button type="button" onClick={() => setAbout(true)}>Built by Dushan Pramod</button>
       </footer>
+
+      <AboutDialog open={about} onClose={() => setAbout(false)} />
     </div>
   )
 }

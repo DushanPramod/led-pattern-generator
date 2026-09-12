@@ -863,12 +863,84 @@ code {
   border-top: 1px solid var(--line);
 }
 
-.credit a {
+.credit button {
+  background: none;
+  border: 0;
+  padding: 2px 6px;
   color: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
 }
 
-.credit a:hover {
+.credit button:hover {
   color: var(--accent-text);
+  text-decoration-color: currentColor;
+}
+
+/* --- about dialog ------------------------------------------------------ */
+
+dialog.about {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+dialog.about::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.about-body {
+  padding: 20px 22px 18px;
+}
+
+.about-body h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.about-body .version {
+  margin: 2px 0 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.about-body .by {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.about-body .note {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.about-body .mail {
+  display: inline-block;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 0.85rem;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.about-body .mail:hover {
+  border-color: var(--accent);
+}
+
+.about-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 /* --- labelled controls inside a toolbar -------------------------------- */
