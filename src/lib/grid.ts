@@ -214,6 +214,8 @@ export function deserialize(data: SerializedProject | LegacyProject): Project {
     data2: hw.data2,
     clock2: hw.clock2,
     scanOrder: hw.scanOrder,
+    columnDriver: hw.columnDriver === 'pnp' ? 'pnp' : 'direct',
+    rowDriver: hw.rowDriver === 'npn' ? 'npn' : 'direct',
   }
 
   return {

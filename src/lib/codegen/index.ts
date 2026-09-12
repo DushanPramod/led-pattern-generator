@@ -80,6 +80,23 @@ function optimizationNote(options: CodegenOptions): string[] {
   return [` *`, ` * Optimised for low memory:`, ...labels.map((l) => ` *   ${l}`)]
 }
 
+/**
+ * Transistor drivers flip the logic levels the sketch clocks out, so a build
+ * that has them says so up front — flashed onto a board wired without them, the
+ * panel shows the inverse. Direct drive prints nothing.
+ */
+function driverNote(project: Project): string[] {
+  const { columnDriver, rowDriver } = project.hardware
+  const lines: string[] = []
+  if (columnDriver === 'pnp') {
+    lines.push(` *   Columns: PNP high-side transistors — column bits are clocked inverted (LOW = lit).`)
+  }
+  if (rowDriver === 'npn') {
+    lines.push(` *   Rows: NPN low-side transistors — row select is active-high.`)
+  }
+  return lines.length ? [` *`, ` * Transistor drivers fitted:`, ...lines] : []
+}
+
 function banner(project: Project, options: CodegenOptions): string {
   const { rows, cols, halfWidth } = project.grid
   const sram = estimateSram(rows, cols, halfWidth, options)
@@ -101,6 +118,7 @@ function banner(project: Project, options: CodegenOptions): string {
       ? [` * Patterns are stored ${Math.floor(cols / 2)} columns wide and repeated or mirrored.`]
       : []),
     ...optimizationNote(options),
+    ...driverNote(project),
     ...colorNote(project),
     ` */`,
   ].join('\n')

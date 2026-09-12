@@ -13,6 +13,22 @@ export type Grid = {
 
 export type ScanOrder = 'ascending' | 'descending'
 
+/**
+ * What sits between a column register output and the column (the LED anodes).
+ * `direct` wires the output straight to the column resistor; `pnp` puts a PNP
+ * high-side switch in between, which turns on when its base is pulled LOW — so
+ * the sketch has to clock inverted column bits.
+ */
+export type ColumnDriver = 'direct' | 'pnp'
+
+/**
+ * What sits between a row register output and the row (the LED cathodes).
+ * `direct` lets the register sink the row itself, active-low; `npn` puts an NPN
+ * low-side switch in between, which turns on when its base is driven HIGH — so
+ * row select becomes active-high.
+ */
+export type RowDriver = 'direct' | 'npn'
+
 export type Hardware = {
   data1: number
   str1: number
@@ -20,6 +36,12 @@ export type Hardware = {
   data2: number
   clock2: number
   scanOrder: ScanOrder
+  /**
+   * Optional, so a project saved before transistor drivers existed loads as
+   * `direct` and keeps generating exactly the sketch it did.
+   */
+  columnDriver?: ColumnDriver
+  rowDriver?: RowDriver
 }
 
 /**

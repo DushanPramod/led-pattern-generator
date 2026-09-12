@@ -140,6 +140,15 @@ export const COLOR_SCHEMES: ColorScheme[] = [
       Array.from({ length: rows }, (_, r) => [byName('Red'), byName('White'), byName('Blue')][r % 3]),
   },
   {
+    name: 'Buddhist flag',
+    hint: 'Blue, yellow, red, white, orange repeating every five rows',
+    build: (rows) =>
+      Array.from(
+        { length: rows },
+        (_, r) => [byName('Blue'), byName('Yellow'), byName('Red'), byName('White'), byName('Orange')][r % 5],
+      ),
+  },
+  {
     name: 'Rainbow rings',
     hint: 'Hue swept from the hub outwards',
     build: (rows) =>

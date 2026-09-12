@@ -225,6 +225,24 @@ uint16_t scaleStepSpeed(uint8_t scale) {
     hw.scanOrder === 'ascending'
       ? `  for (uint8_t col = 0; col < PANEL_COLS; col++) {`
       : `  for (uint8_t col = PANEL_COLS; col-- > 0;) {`
+  // A PNP high-side switch conducts with its base pulled LOW, and an NPN
+  // low-side switch with its base driven HIGH, so each transistor stage flips
+  // the level its register has to put out. Without one, the text is unchanged.
+  const columnBit =
+    hw.columnDriver === 'pnp'
+      ? `    // PNP column drivers switch on with a LOW base, so a lit pixel is clocked as LOW.
+    digitalWrite(PIN_COLUMN_DATA, framePixel(row, col) ? LOW : HIGH);`
+      : `    digitalWrite(PIN_COLUMN_DATA, framePixel(row, col) ? HIGH : LOW);`
+  const rowSelect =
+    hw.rowDriver === 'npn'
+      ? {
+          doc: `/** Row select is active-high: NPN row drivers sink the row whose base is driven HIGH. */`,
+          bit: `    digitalWrite(PIN_ROW_DATA, row == activeRow ? HIGH : LOW);`,
+        }
+      : {
+          doc: `/** Row select is active-low: every row high except the one being lit. */`,
+          bit: `    digitalWrite(PIN_ROW_DATA, row == activeRow ? LOW : HIGH);`,
+        }
 
   return `${speedFn}${scaleFn}
 /** Multiplexes the panel once: every row lit briefly, in turn. */
@@ -240,17 +258,17 @@ void shiftColumnBits(uint8_t row) {
   digitalWrite(PIN_LATCH, LOW);
 ${colLoop}
     digitalWrite(PIN_COLUMN_CLOCK, LOW);
-    digitalWrite(PIN_COLUMN_DATA, framePixel(row, col) ? HIGH : LOW);
+${columnBit}
     digitalWrite(PIN_COLUMN_CLOCK, HIGH);
   }
 }
 
-/** Row select is active-low: every row high except the one being lit. */
+${rowSelect.doc}
 void shiftRowSelect(uint8_t activeRow) {
   digitalWrite(PIN_LATCH, LOW);
   for (uint8_t row = 0; row < PANEL_ROWS; row++) {
     digitalWrite(PIN_ROW_CLOCK, LOW);
-    digitalWrite(PIN_ROW_DATA, row == activeRow ? LOW : HIGH);
+${rowSelect.bit}
     digitalWrite(PIN_ROW_CLOCK, HIGH);
   }
 }

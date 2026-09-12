@@ -10,6 +10,8 @@ export const DEFAULT_HARDWARE: Hardware = {
   data2: 5,
   clock2: 6,
   scanOrder: 'ascending',
+  columnDriver: 'direct',
+  rowDriver: 'direct',
 }
 
 /** The hand-written sketches all read a pot on A0 mapped to 10-500 ms. */

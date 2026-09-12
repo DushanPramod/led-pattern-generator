@@ -17,6 +17,8 @@ import {
   baseSpeedMs,
   clampFactor,
   clampMs,
+  FACTOR_MAX,
+  FACTOR_MIN,
   formatFactor,
   frameSpeedMs,
   frameStepMs,
@@ -72,16 +74,29 @@ export function MotionControls({ frame, grid }: Props) {
   // Typed like the panel sizes: committed on blur or Enter, so a half-typed
   // number is never read and one edit is one undo entry.
   const [draftMs, setDraftMs] = useState(String(frame.speedMs ?? base))
+  const [draftFactor, setDraftFactor] = useState(String(factor))
   const [draftOf, setDraftOf] = useState(frame)
   if (draftOf !== frame) {
     setDraftOf(frame)
     setDraftMs(String(frame.speedMs ?? base))
+    setDraftFactor(String(factor))
   }
   const commitMs = () => {
     if (draftMs.trim() === '' || !Number.isFinite(Number(draftMs))) {
       return setDraftMs(String(frame.speedMs ?? base))
     }
     update({ speedMs: clampMs(Number(draftMs)) })
+  }
+  // Snapped to the sixteenths the sketch carries, so the field shows back the
+  // factor that will actually play rather than the one typed.
+  const commitFactor = () => {
+    const typed = Number(draftFactor.replace(/x$/i, ''))
+    if (draftFactor.trim() === '' || !Number.isFinite(typed) || typed <= 0) {
+      return setDraftFactor(String(factor))
+    }
+    const next = clampFactor(typed)
+    setDraftFactor(String(next))
+    if (next !== factor) update({ speedFactor: next })
   }
   const mirrorIgnored =
     !!grid.halfWidth &&
@@ -297,19 +312,26 @@ export function MotionControls({ frame, grid }: Props) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex w-[88px] flex-col gap-1">
-          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
-            Steps
-          </span>
+      <label className="flex flex-col gap-1">
+        <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+          Steps
+        </span>
+        <div className="flex items-center gap-2">
           <Input
             type="number"
+            className="w-24"
             min={1}
             value={motion.steps}
             onChange={(e) => setSteps(Number(e.target.value))}
           />
-        </label>
-        <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-xs text-muted-foreground">
+            {motion.kind === 'static' ? 'steps held' : 'shifts played'}, not a delay
+          </span>
+        </div>
+      </label>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
             Step speed
           </span>
@@ -343,28 +365,54 @@ export function MotionControls({ frame, grid }: Props) {
                 }}
               />
             ) : (
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                className="flex-wrap"
-                value={String(factor)}
-                onValueChange={(v) => v && update({ speedFactor: Number(v) })}
-              >
-                {SPEED_PRESETS.map((preset) => (
-                  <ToggleGroupItem
-                    key={preset.label}
-                    value={String(preset.factor)}
-                    title={`${frameSpeedMs(base, preset.factor)} ms per step at the current base`}
-                  >
-                    {preset.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              <span className="text-sm text-muted-foreground">
+                = <strong className="text-foreground">{frameStepMs(base, frame)} ms</strong> per step
+              </span>
             )}
           </div>
         </div>
-        <p className="m-0 basis-full text-xs leading-relaxed text-muted-foreground">
+        {!pinned && (
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              className="flex-wrap"
+              value={String(factor)}
+              onValueChange={(v) => v && update({ speedFactor: Number(v) })}
+            >
+              {SPEED_PRESETS.map((preset) => (
+                <ToggleGroupItem
+                  key={preset.label}
+                  value={String(preset.factor)}
+                  title={`${frameSpeedMs(base, preset.factor)} ms per step at the current base`}
+                >
+                  {preset.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <label className="flex items-center gap-1 text-sm text-muted-foreground">
+              Custom
+              <Input
+                type="number"
+                className="h-8 w-20"
+                min={FACTOR_MIN}
+                max={FACTOR_MAX}
+                step={1 / 16}
+                aria-label="Custom speed factor"
+                title={`Any multiple from ${formatFactor(FACTOR_MIN)} to ${formatFactor(FACTOR_MAX)}, in sixteenths`}
+                value={draftFactor}
+                onChange={(e) => setDraftFactor(e.target.value)}
+                onBlur={commitFactor}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                }}
+              />
+              x
+            </label>
+          </div>
+        )}
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           {pinned ? (
             <>
               Held for <strong>{frameStepMs(base, frame)} ms</strong> per step, fixed

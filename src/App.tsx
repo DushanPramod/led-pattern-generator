@@ -2,7 +2,6 @@ import { Redo2, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { AboutDialog } from './components/AboutDialog'
 import { CodeView } from './components/CodeView'
-import { DesignPresets } from './components/DesignPresets'
 import { FrameCanvas } from './components/FrameCanvas'
 import { FrameList } from './components/FrameList'
 import { MemoryCheck } from './components/MemoryCheck'
@@ -165,7 +164,6 @@ function Workspace() {
                 />
               </section>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
-                <DesignPresets frame={selectedFrame} grid={project.grid} />
                 <TileControls frame={selectedFrame} grid={project.grid} />
                 <MotionControls frame={selectedFrame} grid={project.grid} />
               </div>

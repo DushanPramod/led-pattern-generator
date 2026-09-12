@@ -11,6 +11,7 @@ import {
 import type { Frame, Grid } from '../types'
 import { divisors, regionOf, shiftCells, snapToDivisor, sourceCols } from '../lib/grid'
 import { useFrameActions } from '../state/useProject'
+import { DesignPresets } from './DesignPresets'
 import { Button } from './ui/button'
 import { Checkbox } from './ui/checkbox'
 import { Label } from './ui/label'
@@ -81,10 +82,13 @@ export function TileControls({ frame, grid }: Props) {
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-      <h3 className="m-0 text-sm font-semibold">
-        Pattern tile &amp; drawing
-        <span className="font-normal text-muted-foreground"> · this frame only</span>
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="m-0 text-sm font-semibold">
+          Pattern tile &amp; drawing
+          <span className="font-normal text-muted-foreground"> · this frame only</span>
+        </h3>
+        <DesignPresets frame={frame} grid={grid} />
+      </div>
 
       <ToggleGroup
         type="single"
@@ -180,7 +184,7 @@ export function TileControls({ frame, grid }: Props) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-3">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={clear}>Clear</Button>
           <Button type="button" variant="outline" onClick={fill}>Fill</Button>
