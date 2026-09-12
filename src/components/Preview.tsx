@@ -1,8 +1,15 @@
+import { Pause, Play } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_LED_COLOR, unlit } from '../lib/colors'
 import { renderTimeline } from '../lib/simulate'
 import { baseSpeedMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
+import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
+import { Label } from './ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Slider } from './ui/slider'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 const SCREEN_BG = '#07090d'
 
@@ -162,96 +169,100 @@ export function Preview() {
   const shownDelay = Math.max(1, Math.round((current?.delay ?? 0) / rate))
 
   return (
-    <section className="panel preview">
-      <div className="preview-screen">
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="flex justify-center overflow-x-auto rounded-lg border bg-[#07090d] p-3">
         <canvas ref={canvasRef} />
       </div>
 
-      <div className="tools">
-        <button type="button" onClick={() => setPlaying((p) => !p)}>
-          {playing ? '❚❚ Pause' : '▶ Play'}
-        </button>
-        <label className="check">
-          <input type="checkbox" checked={soloFrame} onChange={(e) => setSoloFrame(e.target.checked)} />
-          <span>This frame only</span>
-        </label>
-        <span className="spacer" />
-        <div className="seg">
-          <button
-            type="button"
-            className={shape === 'flat' ? 'on' : ''}
-            onClick={() => setShape('flat')}
-          >
-            Flat
-          </button>
-          <button
-            type="button"
-            className={shape === 'round' ? 'on' : ''}
-            onClick={() => setShape('round')}
-          >
-            Round
-          </button>
-          <button
-            type="button"
-            className={shape === 'fan' ? 'on' : ''}
-            onClick={() => setShape('fan')}
-          >
-            Fan
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" onClick={() => setPlaying((p) => !p)}>
+          {playing ? <Pause /> : <Play />} {playing ? 'Pause' : 'Play'}
+        </Button>
+        <Label className="text-sm font-normal">
+          <Checkbox
+            checked={soloFrame}
+            onCheckedChange={(checked) => setSoloFrame(checked === true)}
+            aria-label="This frame only"
+          />
+          This frame only
+        </Label>
+        <span className="flex-1" />
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={shape}
+          onValueChange={(v) => v && setShape(v as typeof shape)}
+        >
+          <ToggleGroupItem value="flat">Flat</ToggleGroupItem>
+          <ToggleGroupItem value="round">Round</ToggleGroupItem>
+          <ToggleGroupItem value="fan">Fan</ToggleGroupItem>
+        </ToggleGroup>
         <label
-          className="field small"
+          className="flex items-center gap-1.5"
           title="How fast this preview plays. The panel is unaffected — frame speed is set under Movement."
         >
-          <span>Playback</span>
-          <select value={String(rate)} onChange={(e) => setRate(Number(e.target.value))}>
-            <option value="0.25">0.25x</option>
-            <option value="0.5">0.5x</option>
-            <option value="1">1x</option>
-            <option value="2">2x</option>
-            <option value="4">4x</option>
-          </select>
+          <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Playback
+          </span>
+          <Select value={String(rate)} onValueChange={(v) => setRate(Number(v))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0.25">0.25x</SelectItem>
+              <SelectItem value="0.5">0.5x</SelectItem>
+              <SelectItem value="1">1x</SelectItem>
+              <SelectItem value="2">2x</SelectItem>
+              <SelectItem value="4">4x</SelectItem>
+            </SelectContent>
+          </Select>
         </label>
       </div>
 
       {shape !== 'flat' && (
-        <div className="row">
+        <div className="flex flex-wrap items-center gap-3">
           {shape === 'fan' && (
-            <label className="field small">
-              <span>Sweep</span>
-              <select value={sweep} onChange={(e) => setSweep(Number(e.target.value))}>
-                {[120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
-                  <option key={deg} value={deg}>
-                    {deg}°
-                  </option>
-                ))}
-              </select>
+            <label className="flex items-center gap-1.5">
+              <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Sweep
+              </span>
+              <Select value={String(sweep)} onValueChange={(v) => setSweep(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+                    <SelectItem key={deg} value={String(deg)}>
+                      {deg}°
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           )}
-          <label className="check">
-            <input
-              type="checkbox"
+          <Label className="text-sm font-normal">
+            <Checkbox
               checked={rimFirst}
-              onChange={(e) => setRimFirst(e.target.checked)}
+              onCheckedChange={(checked) => setRimFirst(checked === true)}
+              aria-label="Row 1 at the rim (strips wired inwards)"
             />
-            <span>Row 1 at the rim (strips wired inwards)</span>
-          </label>
+            Row 1 at the rim (strips wired inwards)
+          </Label>
         </div>
       )}
 
-      <input
-        className="scrub"
-        type="range"
+      <Slider
+        className="py-1.5"
         min={0}
         max={Math.max(0, steps.length - 1)}
-        value={step}
-        onChange={(e) => {
+        value={[step]}
+        onValueChange={([v]) => {
           setPlaying(false)
-          setStep(Number(e.target.value))
+          setStep(v)
         }}
       />
 
-      <p className="note">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         {steps.length === 0
           ? 'Add a frame to the timeline to preview it.'
           : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step${
@@ -259,7 +270,7 @@ export function Preview() {
             }`}
       </p>
       {shape !== 'flat' && (
-        <p className="note">
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           The {grid.rows} x {grid.cols} panel wrapped into {shape === 'round' ? 'a disc' : 'a fan'}:{' '}
           {grid.cols} spokes of {grid.rows} LEDs each,{' '}
           {shape === 'round'

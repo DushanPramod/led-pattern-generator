@@ -11,6 +11,11 @@ import { baseSpeedMs } from '../lib/speed'
 import { searchOptimizations } from '../lib/optimize/search'
 import type { BatchMeasurer, Trial } from '../lib/optimize/search'
 import { useProject } from '../state/useProject'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Label } from './ui/label'
+import { RadioGroup, RadioGroupItem } from './ui/radio-group'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
 const LEVELS: Array<{ id: OptimizationLevel; label: string; blurb: string }> = [
   { id: 'off', label: 'Off', blurb: 'One readable table per frame, exactly as drawn.' },
@@ -129,25 +134,34 @@ export function OptimizePanel({
   const stale = measured && measured.fqbn !== fqbn
 
   return (
-    <section className="panel optimize">
-      <h3>Optimise for low memory</h3>
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <h3 className="m-0 text-sm font-semibold">Optimise for low memory</h3>
 
-      <div className="level-choice">
+      <RadioGroup
+        className="grid-cols-1 gap-1.5 sm:grid-cols-3"
+        value={level}
+        onValueChange={(v) => setLevel(v as OptimizationLevel)}
+      >
         {LEVELS.map((l) => (
-          <label key={l.id} className={`level${level === l.id ? ' on' : ''}`}>
-            <input
-              type="radio"
-              name="optimization-level"
-              checked={level === l.id}
-              onChange={() => setLevel(l.id)}
+          <Label
+            key={l.id}
+            className={cn(
+              'grid cursor-pointer grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0.5 rounded-lg border px-2.5 py-2 font-normal',
+              level === l.id && 'border-primary bg-accent',
+            )}
+          >
+            <RadioGroupItem
+              value={l.id}
+              aria-label={l.label}
+              className="row-span-2 self-center"
             />
-            <strong>{l.label}</strong>
-            <span>{l.blurb}</span>
-          </label>
+            <strong className="text-[13px] font-semibold">{l.label}</strong>
+            <span className="col-start-2 text-xs text-muted-foreground">{l.blurb}</span>
+          </Label>
         ))}
-      </div>
+      </RadioGroup>
 
-      <p className="note">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         {analysis.frames} frame{analysis.frames === 1 ? '' : 's'}, {analysis.distinctTables} distinct{' '}
         {analysis.distinctTables === 1 ? 'table' : 'tables'}, {formatBytes(analysis.totalPatternBytes)}{' '}
         of artwork
@@ -158,10 +172,9 @@ export function OptimizePanel({
 
       {level !== 'off' && (
         <>
-          <div className="row">
-            <button
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
               type="button"
-              className="primary"
               onClick={() => void run()}
               disabled={running || !ready}
               title={
@@ -171,67 +184,70 @@ export function OptimizePanel({
               }
             >
               {running ? 'Searching…' : 'Find the smallest build'}
-            </button>
+            </Button>
             {measured && !stale && (
-              <span className="note">
+              <span className="text-xs text-muted-foreground">
                 Measured: SRAM {formatBytes(measured.sram)}, Flash {formatBytes(measured.flash)}
               </span>
             )}
-            {stale && <span className="note warn">Measured on a different board.</span>}
+            {stale && <span className="text-xs text-warn">Measured on a different board.</span>}
           </div>
 
           {trials.length > 0 && (
-            <table className="trials">
-              <thead>
-                <tr>
-                  <th>Candidate</th>
-                  <th>SRAM</th>
-                  <th>Flash</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="text-xs tabular-nums [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Candidate</TableHead>
+                  <TableHead>SRAM</TableHead>
+                  <TableHead>Flash</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {trials.map((t, i) => (
-                  <tr key={`${t.label}-${i}`} className={t.ok ? '' : 'failed'}>
-                    <td>{t.label}</td>
-                    <td>
+                  <TableRow key={`${t.label}-${i}`} className={cn(!t.ok && 'text-destructive')}>
+                    <TableCell>{t.label}</TableCell>
+                    <TableCell>
                       {t.ok
                         ? t.deltaSram === null || t.deltaSram === 0
                           ? formatBytes(t.sram ?? 0)
                           : signed(t.deltaSram)
                         : '—'}
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {t.ok
                         ? t.deltaFlash === null || t.deltaFlash === 0
                           ? formatBytes(t.flash ?? 0)
                           : signed(t.deltaFlash)
                         : t.note}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
 
-          {summary && <p className="note">{summary}</p>}
+          {summary && <p className="m-0 text-xs leading-relaxed text-muted-foreground">{summary}</p>}
           {error && (
-            <div className="compile-error">
-              <strong>Could not finish</strong>
-              <pre>{error}</pre>
+            <div className="flex flex-col gap-1.5 rounded-lg border border-destructive p-2.5 text-xs">
+              <strong className="text-destructive">Could not finish</strong>
+              <pre className="m-0 max-h-[220px] overflow-auto rounded-md bg-code p-2 text-[0.72rem] leading-relaxed break-words whitespace-pre-wrap">
+                {error}
+              </pre>
             </div>
           )}
 
           {settings && settings.passes.length > 0 && (
-            <ul className="chosen">
+            <ul className="m-0 list-disc pl-5 text-xs text-muted-foreground">
               {settings.passes.map((p) => (
                 <li key={p}>
-                  <strong>{PASS_META[p].label}</strong> — {PASS_META[p].summary}
+                  <strong className="text-foreground">{PASS_META[p].label}</strong> —{' '}
+                  {PASS_META[p].summary}
                 </li>
               ))}
             </ul>
           )}
 
-          <p className="note">
+          <p className="m-0 text-xs leading-relaxed text-muted-foreground">
             Every candidate is replayed against the reference simulator before it is compiled, so
             whatever is chosen lights exactly the same LEDs in the same order as the plain sketch.
           </p>
@@ -239,9 +255,10 @@ export function OptimizePanel({
       )}
 
       {level !== 'off' && !ready && (
-        <p className="note warn">
-          Searching needs <code>npm run dev</code> — the browser cannot run a compiler. The sketch is
-          still built with the {level} passes; only the measuring is unavailable.
+        <p className="m-0 text-xs leading-relaxed text-warn">
+          Searching needs <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> — the
+          browser cannot run a compiler. The sketch is still built with the {level} passes; only the
+          measuring is unavailable.
         </p>
       )}
     </section>

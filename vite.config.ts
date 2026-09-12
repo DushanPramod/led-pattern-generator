@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { arduinoCli } from './plugins/arduinoCli.ts'
@@ -10,7 +12,10 @@ const { version } = JSON.parse(
 // https://vite.dev/config/
 export default defineConfig({
   // arduinoCli only applies during `serve`, so the production build is unchanged.
-  plugins: [react(), arduinoCli()],
+  plugins: [react(), tailwindcss(), arduinoCli()],
+  resolve: {
+    alias: { '@': path.resolve(import.meta.dirname, './src') },
+  },
   // Honour a port handed down by the environment, so several dev servers can
   // run side by side; falls back to the Vite default.
   server: { port: Number(process.env.PORT) || 5173 },

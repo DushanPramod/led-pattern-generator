@@ -6,7 +6,23 @@ import { estimateSram } from '../lib/codegen'
 import { canHalfWidth, framesClippedBy, sourceCols } from '../lib/grid'
 import { colorRuns, describeColor } from '../lib/colors'
 import { baseSpeedMs } from '../lib/speed'
+import { cn } from '../lib/utils'
 import type { Grid, ScanOrder } from '../types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 const PRESETS = [
   { label: '8 x 32', rows: 8, cols: 32 },
@@ -34,6 +50,7 @@ export function PanelSetup() {
   const [showColors, setShowColors] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [draft, setDraft] = useState(() => ({ grid, rows: String(grid.rows), cols: String(grid.cols) }))
+  const [pendingResize, setPendingResize] = useState<{ next: Grid; message: string } | null>(null)
   const sram = estimateSram(grid.rows, grid.cols, grid.halfWidth)
   const speedSummary = project.speed.useController
     ? `${project.speed.pin} pot`
@@ -64,15 +81,26 @@ export function PanelSetup() {
       const rest = clipped.length > 4 ? ` and ${clipped.length - 4} more` : ''
       const where =
         clipped.length === 1 ? shown : `${clipped.length} of them: ${shown}${rest}`
-      const ok = confirm(
-        `The panel is shared by every frame, so resizing it to ${rows} x ${cols} rescales ` +
-          `${frameCount === 1 ? 'the frame' : `all ${frameCount} frames`}.\n\n` +
-          `Artwork outside the new size is cropped on ${where}.\n\n` +
-          'Continue?',
-      )
-      if (!ok) return resetDrafts()
+      setPendingResize({
+        next,
+        message:
+          `The panel is shared by every frame, so resizing it to ${rows} x ${cols} rescales ` +
+          `${frameCount === 1 ? 'the frame' : `all ${frameCount} frames`}. ` +
+          `Artwork outside the new size is cropped on ${where}.`,
+      })
+      return
     }
     dispatch({ type: 'setGrid', grid: next })
+  }
+
+  const confirmResize = () => {
+    if (!pendingResize) return
+    dispatch({ type: 'setGrid', grid: pendingResize.next })
+    setPendingResize(null)
+  }
+  const cancelResize = () => {
+    setPendingResize(null)
+    resetDrafts()
   }
 
   const lock = () => {
@@ -82,11 +110,13 @@ export function PanelSetup() {
   }
 
   return (
-    <section className="panel setup">
-      <div className="row">
-        <label className="field grow">
-          <span>Project name</span>
-          <input
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Project name
+          </span>
+          <Input
             value={project.name}
             onChange={(e) => dispatch({ type: 'setName', name: e.target.value })}
           />
@@ -94,16 +124,18 @@ export function PanelSetup() {
 
         {locked ? (
           <>
-            <div className="field grow">
-              <span>Panel — one size and palette for the whole project</span>
-              <div className="panel-lock">
-                <span className="lock-badge" title="Fixed for every frame in this project">
+            <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Panel — one size and palette for the whole project
+              </span>
+              <div className="flex min-h-8 flex-wrap items-center gap-2 rounded-lg border bg-muted px-2.5 py-1 text-sm">
+                <Badge variant="secondary" title="Fixed for every frame in this project">
                   Locked
-                </span>
-                <strong>
+                </Badge>
+                <strong className="tabular-nums">
                   {grid.rows} × {grid.cols}
                 </strong>
-                <span className="subtle">
+                <span className="font-normal text-muted-foreground">
                   · {colorSummary(project.rowColors)}
                   {grid.halfWidth ? ' · half-width source' : ''}
                   {frameCount === 1
@@ -113,15 +145,17 @@ export function PanelSetup() {
               </div>
             </div>
 
-            <button type="button" className="ghost" onClick={() => setUnlocked(true)}>
+            <Button type="button" variant="ghost" onClick={() => setUnlocked(true)}>
               Change panel…
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <label className="field">
-              <span>Rows</span>
-              <input
+            <label className="flex w-[88px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Rows
+              </span>
+              <Input
                 type="number"
                 min={1}
                 max={64}
@@ -134,9 +168,11 @@ export function PanelSetup() {
               />
             </label>
 
-            <label className="field">
-              <span>Columns</span>
-              <input
+            <label className="flex w-[88px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Columns
+              </span>
+              <Input
                 type="number"
                 min={1}
                 max={128}
@@ -149,64 +185,84 @@ export function PanelSetup() {
               />
             </label>
 
-            <div className="field">
-              <span>Presets</span>
-              <div className="chips">
+            <div className="flex flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Presets
+              </span>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={PRESETS.find((p) => grid.rows === p.rows && grid.cols === p.cols && !grid.halfWidth)?.label}
+                onValueChange={(v) => {
+                  const p = PRESETS.find((preset) => preset.label === v)
+                  if (p) setGrid({ rows: p.rows, cols: p.cols, halfWidth: false })
+                }}
+              >
                 {PRESETS.map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    className={
-                      grid.rows === p.rows && grid.cols === p.cols && !grid.halfWidth
-                        ? 'chip on'
-                        : 'chip'
-                    }
-                    onClick={() => setGrid({ rows: p.rows, cols: p.cols, halfWidth: false })}
-                  >
+                  <ToggleGroupItem key={p.label} value={p.label}>
                     {p.label}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
 
-            <button
+            <Button
               type="button"
-              className={showColors ? 'ghost on' : 'ghost'}
+              variant={showColors ? 'secondary' : 'ghost'}
               onClick={() => setShowColors((v) => !v)}
             >
               {showColors ? 'Hide colours' : 'LED colours'}
-            </button>
+            </Button>
 
             {frameCount > 0 && (
-              <button type="button" className="primary" onClick={lock}>
+              <Button type="button" onClick={lock}>
                 Done
-              </button>
+              </Button>
             )}
           </>
         )}
 
-        <button
+        <Button
           type="button"
-          className={showSpeed ? 'ghost on' : 'ghost'}
+          variant={showSpeed ? 'secondary' : 'ghost'}
           onClick={() => setShowSpeed((v) => !v)}
         >
           {showSpeed ? 'Hide speed' : `Speed · ${speedSummary}`}
-        </button>
+        </Button>
 
-        <button type="button" className="ghost" onClick={() => setShowPins((v) => !v)}>
+        <Button type="button" variant="ghost" onClick={() => setShowPins((v) => !v)}>
           {showPins ? 'Hide wiring' : 'Wiring & pins'}
-        </button>
+        </Button>
       </div>
 
+      <AlertDialog open={pendingResize !== null} onOpenChange={(open) => !open && cancelResize()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resize the panel?</AlertDialogTitle>
+            <AlertDialogDescription>{pendingResize?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelResize}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResize}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {!locked && frameCount > 0 && (
-        <p className="note warn">
+        <p className="m-0 text-xs leading-relaxed text-warn">
           Panel size and LED colours belong to the project, not to a frame. Changing them here
           rescales {frameCount === 1 ? 'the frame' : `all ${frameCount} frames`} at once, and
           shrinking crops anything that falls outside the new size.
         </p>
       )}
 
-      <p className={sram.fitsUno ? 'note' : 'note warn'}>
+      <p
+        className={cn(
+          'm-0 text-xs leading-relaxed',
+          sram.fitsUno ? 'text-muted-foreground' : 'text-warn',
+        )}
+      >
         Bit-packed buffers use <strong>{sram.arrayBytes} bytes</strong> of SRAM
         {grid.halfWidth
           ? ` (a ${grid.rows}x${grid.cols} panel buffer plus a ${grid.rows}x${sourceCols(grid)} pattern)`
@@ -224,11 +280,13 @@ export function PanelSetup() {
       {!locked && showColors && <PanelColors />}
 
       {showPins && (
-        <div className="row wrap pins">
+        <div className="flex flex-wrap items-start gap-3 border-t pt-3">
           {(['data1', 'str1', 'clock1', 'data2', 'clock2'] as const).map((pin) => (
-            <label className="field small" key={pin}>
-              <span>{pin}</span>
-              <input
+            <label className="flex w-[88px] flex-col gap-1" key={pin}>
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                {pin}
+              </span>
+              <Input
                 type="number"
                 min={0}
                 max={53}
@@ -240,20 +298,25 @@ export function PanelSetup() {
             </label>
           ))}
 
-          <label className="field small">
-            <span>Column order</span>
-            <select
+          <label className="flex w-[150px] flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Column order
+            </span>
+            <Select
               value={hardware.scanOrder}
-              onChange={(e) =>
-                dispatch({ type: 'setHardware', patch: { scanOrder: e.target.value as ScanOrder } })
-              }
+              onValueChange={(v) => dispatch({ type: 'setHardware', patch: { scanOrder: v as ScanOrder } })}
             >
-              <option value="ascending">Ascending</option>
-              <option value="descending">Descending</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ascending">Ascending</SelectItem>
+                <SelectItem value="descending">Descending</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
 
-          <p className="note span">
+          <p className="m-0 basis-full text-xs leading-relaxed text-muted-foreground">
             Column shifting order is the one spot that depends on how the 74HC595 chain is
             physically wired. If the pattern comes out reversed on the panel, flip it here.
           </p>

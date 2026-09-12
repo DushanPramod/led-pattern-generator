@@ -8,6 +8,9 @@ import {
   normalizeHex,
 } from '../lib/colors'
 import { useProject } from '../state/useProject'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
 
 /**
  * Per-row LED colours. Rows are the unit because that is how the boards are
@@ -75,80 +78,100 @@ export function PanelColors() {
   }, [colors, rows])
 
   return (
-    <div className="led-colors">
-      <div className="row">
-        <div className="field grow">
-          <span>Rows · click to select, shift-click a range, ctrl-click to add</span>
-          <div className="row-strip">
+    <div className="flex flex-col gap-3 border-t pt-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Rows · click to select, shift-click a range, ctrl-click to add
+          </span>
+          <div className="flex flex-wrap gap-1">
             {colors.map((hex, i) => (
               <button
                 key={i}
                 type="button"
-                className={selection.has(i) ? 'row-swatch on' : 'row-swatch'}
+                className={cn(
+                  'inline-flex cursor-pointer items-center gap-1.5 rounded-full border py-0.5 pr-2 pl-1 text-xs tabular-nums transition-colors',
+                  selection.has(i)
+                    ? 'border-primary bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:border-primary',
+                )}
                 onClick={(e) => clickRow(i, e)}
                 title={`Row ${i + 1} — ${describeColor(hex)}`}
               >
-                <span className="dot" style={{ background: hex }} />
-                <span className="n">{i + 1}</span>
+                {/* A dark ring keeps pale LEDs (white, ice blue) visible on the light theme. */}
+                <span
+                  className="size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.25)]"
+                  style={{ background: hex }}
+                />
+                <span>{i + 1}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="field">
-          <span>Selection</span>
-          <div className="chips">
-            <button
+        <div className="flex flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Selection
+          </span>
+          <div className="flex gap-1.5">
+            <Button
               type="button"
-              className="chip"
+              variant="outline"
+              size="sm"
               onClick={() => setSelected(new Set(colors.map((_, i) => i)))}
             >
               All
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="chip"
+              variant="outline"
+              size="sm"
               disabled={selection.size === 0}
               onClick={() => setSelected(new Set())}
             >
               None
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="row">
-        <div className="field grow">
-          <span>Preset LED colours</span>
-          <div className="palette">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Preset LED colours
+          </span>
+          <div className="flex flex-wrap gap-1.5">
             {LED_PRESETS.map((preset) => (
               <button
                 key={preset.name}
                 type="button"
-                className="swatch"
+                className="h-7 w-8 cursor-pointer rounded-md shadow-[inset_0_0_0_1px_rgb(0_0_0/0.25)] hover:ring-2 hover:ring-primary"
                 style={{ background: preset.hex }}
                 title={`${preset.name} (${preset.hex}) — ${applyLabel.toLowerCase()}`}
                 onClick={() => apply(preset.hex)}
               >
-                <span className="sr">{preset.name}</span>
+                <span className="sr-only">{preset.name}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="field">
-          <span>Custom colour</span>
-          <div className="custom-color">
+        <div className="flex flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Custom colour
+          </span>
+          <div className="flex items-center gap-1.5">
             <input
               type="color"
+              className="h-8 w-10 shrink-0 rounded-lg border border-input p-0.5"
               value={custom}
               onChange={(e) => {
                 setCustom(e.target.value)
                 setHexDraft(e.target.value)
               }}
             />
-            <input
-              className="hex"
+            <Input
+              className="w-24 font-mono lowercase"
               value={hexDraft}
               spellCheck={false}
               onChange={(e) => {
@@ -161,22 +184,25 @@ export function PanelColors() {
               }}
               onBlur={() => setHexDraft(custom)}
             />
-            <button type="button" className="primary" onClick={() => apply(custom)}>
+            <Button type="button" onClick={() => apply(custom)}>
               {applyLabel}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="row">
-        <div className="field grow">
-          <span>Whole-panel schemes</span>
-          <div className="chips wrap">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Whole-panel schemes
+          </span>
+          <div className="flex flex-wrap gap-1.5">
             {COLOR_SCHEMES.map((scheme) => (
-              <button
+              <Button
                 key={scheme.name}
                 type="button"
-                className="chip"
+                variant="outline"
+                size="sm"
                 title={scheme.hint}
                 onClick={() => {
                   setSelected(new Set())
@@ -184,13 +210,13 @@ export function PanelColors() {
                 }}
               >
                 {scheme.name}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       </div>
 
-      <p className="note">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         {summary} The panel is switched one bit per LED, so colours come from the LEDs you fit on each row —
         they change the editor and the preview, and are written into the sketch header as an
         assembly note, but never change the generated code.

@@ -1,3 +1,73 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Radix reports state as data-state="checked|open|active|…" and orientation as
+   data-orientation, while shadcn's components are written against short
+   variants (data-checked:, data-open:, data-horizontal:, …). These are the
+   definitions that bridge the two — without them the checked, active and
+   orientation styles silently do nothing. Taken from shadcn/tailwind.css. */
+@custom-variant data-open {
+  &:where([data-state='open']),
+  &:where([data-open]:not([data-open='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state='closed']),
+  &:where([data-closed]:not([data-closed='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state='checked']),
+  &:where([data-checked]:not([data-checked='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state='unchecked']),
+  &:where([data-unchecked]:not([data-unchecked='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected='true']) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled='true']),
+  &:where([data-disabled]:not([data-disabled='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state='active']),
+  &:where([data-active]:not([data-active='false'])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation='horizontal']) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation='vertical']) {
+    @slot;
+  }
+}
+
 :root {
   --bg: #f5f6f8;
   --surface: #ffffff;
@@ -11,6 +81,13 @@
   --danger: #d1453b;
   --warn: #a5600b;
   --code-bg: #f7f8fa;
+  --radius: 0.5rem;
+
+  /* Raw aliases some shadcn components reference directly (e.g. an
+     arbitrary-value color-mix()) rather than through the @theme tokens
+     below. Distinct names from the app's own tokens, so no collision. */
+  --foreground: var(--text);
+  --secondary: var(--input);
 
   color-scheme: light dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -18,20 +95,67 @@
   line-height: 1.5;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1117;
-    --surface: #161b23;
-    --input: #1d232d;
-    --line: #2a323e;
-    --text: #e6e9ee;
-    --muted: #8b95a6;
-    --accent: #4ea3ff;
-    --accent-soft: #16314f;
-    --accent-text: #9cc9ff;
-    --danger: #ff6b5e;
-    --warn: #f0b357;
-    --code-bg: #10141b;
+/* Dark values, applied via a `.dark` class on <html> (set by ThemeProvider)
+   instead of prefers-color-scheme, so a manual toggle can override the OS
+   default. ThemeProvider computes the initial class from matchMedia when no
+   stored preference exists, so unattended behavior is unchanged. */
+:root.dark {
+  --bg: #0e1117;
+  --surface: #161b23;
+  --input: #1d232d;
+  --line: #2a323e;
+  --text: #e6e9ee;
+  --muted: #8b95a6;
+  --accent: #4ea3ff;
+  --accent-soft: #16314f;
+  --accent-text: #9cc9ff;
+  --danger: #ff6b5e;
+  --warn: #f0b357;
+  --code-bg: #10141b;
+}
+
+/* shadcn/ui expects a distinct set of --color-* tokens (bg-muted,
+   border-input, ring-ring, ...). These are separate CSS variable *names*
+   from the app's own tokens above on purpose: shadcn's --input is a border
+   color and its --muted is a background fill, while this app's --input is a
+   fill and --muted is a text color — reusing the same names would silently
+   collide. Each shadcn token below just points at whichever of the app's
+   values plays the equivalent visual role, so palette edits only ever
+   happen in one place (the blocks above). */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--input);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--input);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--accent-soft);
+  --color-accent-foreground: var(--accent-text);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: #ffffff;
+  --color-warn: var(--warn);
+  --color-code: var(--code-bg);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--accent);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* The workspace drops to a single column below this. */
+  --breakpoint-wide: 1100px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
   }
 }
 

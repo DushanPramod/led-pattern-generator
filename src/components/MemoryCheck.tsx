@@ -7,6 +7,10 @@ import { FLASH_TOLERANCE, PATTERN_DESCRIPTOR_BYTES, estimateMemory, generate } f
 import { projectOptions } from '../lib/optimize/settings'
 import { OptimizePanel } from './OptimizePanel'
 import { useProject } from '../state/useProject'
+import { Button } from './ui/button'
+import { Progress } from './ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { cn } from '../lib/utils'
 
 type Bar = { label: string; used: number | null; max: number | null; note: string }
 
@@ -15,10 +19,15 @@ function UsageBar({ label, used, max, note }: Bar) {
   const over = used !== null && max !== null && used > max
   const tight = pct !== null && pct > 80
   return (
-    <div className="usage">
-      <div className="usage-head">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
         <strong>{label}</strong>
-        <span className={over ? 'danger' : tight ? 'warn' : ''}>
+        <span
+          className={cn(
+            over && 'font-semibold text-destructive',
+            !over && tight && 'text-warn',
+          )}
+        >
           {used === null
             ? '—'
             : `${formatBytes(used)}${max ? ` of ${formatBytes(max)}` : ''}${
@@ -26,13 +35,14 @@ function UsageBar({ label, used, max, note }: Bar) {
               }`}
         </span>
       </div>
-      <div className="usage-track">
-        <div
-          className={`usage-fill${over ? ' over' : tight ? ' tight' : ''}`}
-          style={{ width: `${pct ?? 0}%` }}
-        />
-      </div>
-      <span className="usage-note">{note}</span>
+      <Progress
+        value={pct ?? 0}
+        className={cn(
+          over && '[&>[data-slot=progress-indicator]]:bg-destructive',
+          tight && !over && '[&>[data-slot=progress-indicator]]:bg-[var(--warn)]',
+        )}
+      />
+      <span className="text-[0.74rem] leading-relaxed text-muted-foreground">{note}</span>
     </div>
   )
 }
@@ -141,27 +151,33 @@ export function MemoryCheck() {
 
   return (
     <>
-    <section className="panel memory">
-      <div className="row">
-        <label className="field grow">
-          <span>Board</span>
-          <select value={fqbn} onChange={(e) => setFqbn(e.target.value)}>
-            {boards.map((b) => (
-              <option key={b.fqbn} value={b.fqbn}>
-                {b.name} ({b.fqbn.split(':').pop()})
-              </option>
-            ))}
-          </select>
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Board
+          </span>
+          <Select value={fqbn} onValueChange={setFqbn}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {boards.map((b) => (
+                <SelectItem key={b.fqbn} value={b.fqbn}>
+                  {b.name} ({b.fqbn.split(':').pop()})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
-        <button
+        <Button
           type="button"
-          className="primary"
           onClick={() => void check()}
           disabled={busy || status.state !== 'ready'}
           title={status.state === 'ready' ? 'Compile with arduino-cli' : 'Needs the local dev server'}
         >
           {busy ? 'Compiling…' : 'Check memory'}
-        </button>
+        </Button>
       </div>
 
       <UsageBar
@@ -195,17 +211,26 @@ export function MemoryCheck() {
       />
 
       {failure && (
-        <div className="compile-error">
-          <strong>Compilation failed</strong>
-          <pre>{failure}</pre>
+        <div className="flex flex-col gap-1.5 rounded-lg border border-destructive p-2.5 text-xs">
+          <strong className="text-destructive">Compilation failed</strong>
+          <pre className="m-0 max-h-[220px] overflow-auto rounded-md bg-code p-2 text-[0.72rem] leading-relaxed break-words whitespace-pre-wrap">
+            {failure}
+          </pre>
         </div>
       )}
 
       {measured && result.output && (
-        <pre className="compile-out">{result.output.trim()}</pre>
+        <pre className="m-0 max-h-[220px] overflow-auto rounded-md border bg-code p-2 text-[0.72rem] leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">
+          {result.output.trim()}
+        </pre>
       )}
 
-      <p className={status.state === 'ready' ? 'note' : 'note warn'}>
+      <p
+        className={cn(
+          'm-0 text-xs leading-relaxed',
+          status.state === 'ready' ? 'text-muted-foreground' : 'text-warn',
+        )}
+      >
         {status.state === 'checking' && 'Looking for arduino-cli…'}
         {status.state === 'ready' && (
           <>
@@ -217,9 +242,10 @@ export function MemoryCheck() {
       </p>
 
       {status.state === 'absent' && (
-        <p className="note">
-          Set <code>ARDUINO_CLI_PATH</code> if arduino-cli lives somewhere unusual. SRAM above is
-          still exact; only Flash is approximate — and on these panels SRAM is what runs out first.
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+          Set <code className="rounded bg-muted px-1 py-0.5">ARDUINO_CLI_PATH</code> if arduino-cli
+          lives somewhere unusual. SRAM above is still exact; only Flash is approximate — and on
+          these panels SRAM is what runs out first.
         </p>
       )}
     </section>

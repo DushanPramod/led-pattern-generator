@@ -12,6 +12,10 @@ import {
   SPEED_MS_MIN,
 } from '../lib/speed'
 import type { SpeedControl } from '../types'
+import { Input } from './ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Slider } from './ui/slider'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 /** The analog pins an Arduino board offers. A Mega has more, but A0-A7 is common. */
 const ANALOG_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']
@@ -74,41 +78,43 @@ export function SpeedSetup() {
   }
 
   return (
-    <div className="speed-setup">
-      <div className="speed-row">
-        <div className="seg">
-          <button
-            type="button"
-            className={speed.useController ? 'on' : ''}
-            onClick={() => patch({ useController: true })}
-          >
-            Analog controller
-          </button>
-          <button
-            type="button"
-            className={speed.useController ? '' : 'on'}
-            onClick={() => patch({ useController: false })}
-          >
-            Fixed speed
-          </button>
-        </div>
+    <div className="flex flex-col gap-2 border-t pt-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={speed.useController ? 'controller' : 'fixed'}
+          onValueChange={(v) => v && patch({ useController: v === 'controller' })}
+        >
+          <ToggleGroupItem value="controller">Analog controller</ToggleGroupItem>
+          <ToggleGroupItem value="fixed">Fixed speed</ToggleGroupItem>
+        </ToggleGroup>
 
         {speed.useController ? (
           <>
-            <label className="field tiny">
-              <span>Pin</span>
-              <select value={speed.pin} onChange={(e) => patch({ pin: e.target.value })}>
-                {ANALOG_PINS.map((pin) => (
-                  <option key={pin} value={pin}>
-                    {pin}
-                  </option>
-                ))}
-              </select>
+            <label className="flex w-[80px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Pin
+              </span>
+              <Select value={speed.pin} onValueChange={(v) => patch({ pin: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANALOG_PINS.map((pin) => (
+                    <SelectItem key={pin} value={pin}>
+                      {pin}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
 
-            <label className="field tiny">
-              <span>Fastest</span>
-              <input
+            <label className="flex w-[80px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Fastest
+              </span>
+              <Input
                 type="number"
                 min={SPEED_MS_MIN}
                 max={speed.maxMs - 1}
@@ -119,9 +125,11 @@ export function SpeedSetup() {
               />
             </label>
 
-            <label className="field tiny">
-              <span>Slowest</span>
-              <input
+            <label className="flex w-[80px] flex-col gap-1">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+                Slowest
+              </span>
+              <Input
                 type="number"
                 min={speed.minMs + 1}
                 max={SPEED_MS_MAX}
@@ -132,39 +140,35 @@ export function SpeedSetup() {
               />
             </label>
 
-            <label className="field knob">
-              <span>
+            <label className="flex min-w-[180px] grow basis-[220px] flex-col gap-2">
+              <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
                 Knob at {positionPercent(speed)}%
-                <span className="subtle">
+                <span className="normal-case">
                   {' '}
                   · reading {clampPosition(speed.position)} / {ADC_MAX}
                 </span>
               </span>
-              <input
-                type="range"
+              <Slider
+                className="py-1.5"
                 min={0}
                 max={ADC_MAX}
-                value={clampPosition(speed.position)}
-                onPointerDown={() => {
-                  sweeping.current = false
-                }}
-                onChange={(e) => {
-                  patch({ position: clampPosition(Number(e.target.value)) }, sweeping.current)
+                value={[clampPosition(speed.position)]}
+                onValueChange={([v]) => {
+                  patch({ position: clampPosition(v) }, sweeping.current)
                   sweeping.current = true
                 }}
-                onPointerUp={() => {
-                  sweeping.current = false
-                }}
-                onBlur={() => {
+                onValueCommit={() => {
                   sweeping.current = false
                 }}
               />
             </label>
           </>
         ) : (
-          <label className="field tiny">
-            <span>Delay (ms)</span>
-            <input
+          <label className="flex w-[100px] flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Delay (ms)
+            </span>
+            <Input
               type="number"
               min={SPEED_MS_MIN}
               max={SPEED_MS_MAX}
@@ -176,13 +180,15 @@ export function SpeedSetup() {
           </label>
         )}
 
-        <div className="speed-base">
-          <span>Base speed</span>
-          <strong>{baseLine(speed)}</strong>
+        <div className="flex flex-col gap-1 whitespace-nowrap border-l pl-3">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Base speed
+          </span>
+          <strong className="text-sm leading-7">{baseLine(speed)}</strong>
         </div>
       </div>
 
-      <p className="note">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         {speed.useController ? (
           <>
             {speed.pin} is mapped across {speed.minMs}-{speed.maxMs} ms and read as the pattern

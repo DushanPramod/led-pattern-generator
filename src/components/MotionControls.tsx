@@ -1,4 +1,14 @@
-import { useState } from 'react'
+import {
+  ArrowDown,
+  ArrowDownLeft,
+  ArrowDownRight,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpLeft,
+  ArrowUpRight,
+} from 'lucide-react'
+import { useState, type ComponentType } from 'react'
 import type { Frame, Grid, Motion } from '../types'
 import { bandOptions } from '../lib/grid'
 import { playedFrames } from '../lib/codegen/designs'
@@ -15,19 +25,30 @@ import {
   SPEED_PRESETS,
 } from '../lib/speed'
 import { useFrameActions, useProject } from '../state/useProject'
+import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 type Props = { frame: Frame; grid: Grid }
 
-const DIRECTIONS: Array<{ label: string; title: string; updown: -1 | 0 | 1; leftright: -1 | 0 | 1 }> = [
-  { label: '↖', title: 'Up + left', updown: 1, leftright: -1 },
-  { label: '↑', title: 'Up', updown: 1, leftright: 0 },
-  { label: '↗', title: 'Up + right', updown: 1, leftright: 1 },
-  { label: '←', title: 'Left', updown: 0, leftright: -1 },
-  { label: '·', title: 'No movement', updown: 0, leftright: 0 },
-  { label: '→', title: 'Right', updown: 0, leftright: 1 },
-  { label: '↙', title: 'Down + left', updown: -1, leftright: -1 },
-  { label: '↓', title: 'Down', updown: -1, leftright: 0 },
-  { label: '↘', title: 'Down + right', updown: -1, leftright: 1 },
+const DIRECTIONS: Array<{
+  icon: ComponentType<{ className?: string }> | null
+  title: string
+  updown: -1 | 0 | 1
+  leftright: -1 | 0 | 1
+}> = [
+  { icon: ArrowUpLeft, title: 'Up + left', updown: 1, leftright: -1 },
+  { icon: ArrowUp, title: 'Up', updown: 1, leftright: 0 },
+  { icon: ArrowUpRight, title: 'Up + right', updown: 1, leftright: 1 },
+  { icon: ArrowLeft, title: 'Left', updown: 0, leftright: -1 },
+  { icon: null, title: 'No movement', updown: 0, leftright: 0 },
+  { icon: ArrowRight, title: 'Right', updown: 0, leftright: 1 },
+  { icon: ArrowDownLeft, title: 'Down + left', updown: -1, leftright: -1 },
+  { icon: ArrowDown, title: 'Down', updown: -1, leftright: 0 },
+  { icon: ArrowDownRight, title: 'Down + right', updown: -1, leftright: 1 },
 ]
 
 export function MotionControls({ frame, grid }: Props) {
@@ -80,72 +101,81 @@ export function MotionControls({ frame, grid }: Props) {
   const setSteps = (steps: number) => update({ motion: { ...motion, steps: Math.max(1, steps) } })
 
   return (
-    <section className="panel">
-      <h3>Movement</h3>
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <h3 className="m-0 text-sm font-semibold">Movement</h3>
 
-      <div className="seg">
-        <button type="button" className={motion.kind === 'scroll' ? 'on' : ''} onClick={() => setKind('scroll')}>
-          Scroll
-        </button>
-        <button type="button" className={motion.kind === 'static' ? 'on' : ''} onClick={() => setKind('static')}>
-          Hold
-        </button>
-        <button
-          type="button"
-          className={motion.kind === 'band' ? 'on' : ''}
-          onClick={() => setKind('band')}
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        value={motion.kind}
+        onValueChange={(v) => v && setKind(v as Motion['kind'])}
+      >
+        <ToggleGroupItem value="scroll">Scroll</ToggleGroupItem>
+        <ToggleGroupItem value="static">Hold</ToggleGroupItem>
+        <ToggleGroupItem
+          value="band"
           disabled={bands.length === 0}
           title={bands.length === 0 ? 'Needs a row count divisible into bands' : 'Split rows into bands'}
         >
           Bands
-        </button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroup>
 
       {motion.kind === 'scroll' && (
         <>
-          <div className="dirpad">
-            {DIRECTIONS.map((d) => (
-              <button
-                key={d.title}
-                type="button"
-                title={d.title}
-                className={motion.updown === d.updown && motion.leftright === d.leftright ? 'on' : ''}
-                onClick={() => update({ motion: { ...motion, updown: d.updown, leftright: d.leftright } })}
-              >
-                {d.label}
-              </button>
-            ))}
+          <div className="grid w-fit grid-cols-3 gap-1">
+            {DIRECTIONS.map((d) => {
+              const active = motion.updown === d.updown && motion.leftright === d.leftright
+              const Icon = d.icon
+              return (
+                <Button
+                  key={d.title}
+                  type="button"
+                  variant={active ? 'default' : 'outline'}
+                  size="icon"
+                  title={d.title}
+                  aria-label={d.title}
+                  onClick={() => update({ motion: { ...motion, updown: d.updown, leftright: d.leftright } })}
+                >
+                  {Icon ? <Icon /> : <span className="block size-1.5 rounded-full bg-current" />}
+                </Button>
+              )
+            })}
           </div>
-          <p className="note">
-            <code>{call}</code>
+          <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+            <code className="rounded bg-muted px-1 py-0.5">{call}</code>
           </p>
           {mirrorIgnored && (
-            <p className="note warn">
+            <p className="m-0 text-xs leading-relaxed text-warn">
               Mirroring is ignored here: a half-width panel reflects each row as it is fed in, so it
               only applies to vertical scrolls. Add an up or down component, or switch to Hold.
             </p>
           )}
-          <label className="check">
-            <input
-              type="checkbox"
+          <Label className="items-start text-sm font-normal">
+            <Checkbox
+              className="mt-0.5"
               checked={frame.preload}
-              onChange={(e) => update({ preload: e.target.checked })}
+              onCheckedChange={(checked) => update({ preload: checked === true })}
+              aria-label="Fill panel before scrolling"
             />
             <span>
-              Fill panel before scrolling <code>FLAG_PRELOAD</code>
+              Fill panel before scrolling{' '}
+              <code className="rounded bg-muted px-1 py-0.5">FLAG_PRELOAD</code>
             </span>
-          </label>
+          </Label>
         </>
       )}
 
       {motion.kind === 'band' && (
         <>
-          <label className="field small">
-            <span>Bands</span>
-            <select
-              value={motion.directions.length}
-              onChange={(e) => {
-                const n = Number(e.target.value)
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Bands
+            </span>
+            <Select
+              value={String(motion.directions.length)}
+              onValueChange={(v) => {
+                const n = Number(v)
                 update({
                   motion: {
                     kind: 'band',
@@ -155,78 +185,85 @@ export function MotionControls({ frame, grid }: Props) {
                 })
               }}
             >
-              {bands.map((n) => (
-                <option key={n} value={n}>
-                  {n} bands of {grid.rows / n} rows
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {bands.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} bands of {grid.rows / n} rows
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
-          <div className="bandlist">
+          <div className="flex flex-col gap-1">
             {motion.directions.map((dir, i) => (
-              <button
+              <Button
                 // eslint-disable-next-line react/no-array-index-key -- bands are positional
                 key={i}
                 type="button"
-                className="band"
+                variant="outline"
+                className="h-auto justify-between gap-3 py-1.5 text-left"
                 onClick={() => {
                   const directions = [...motion.directions]
                   directions[i] = !directions[i]
                   update({ motion: { ...motion, directions } })
                 }}
               >
-                <span className="band-label">Band {i + 1}</span>
-                <span className="band-dir">{dir ? '→ right' : '← left'}</span>
-              </button>
+                <span className="text-muted-foreground">Band {i + 1}</span>
+                <span>{dir ? '→ right' : '← left'}</span>
+              </Button>
             ))}
           </div>
-          <p className="note">
-            <code>{call}</code>
+          <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+            <code className="rounded bg-muted px-1 py-0.5">{call}</code>
           </p>
         </>
       )}
 
       {motion.kind === 'static' && (
-        <p className="note">
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           Holds the pattern on screen for {motion.steps} steps without shifting it.
         </p>
       )}
 
-      <div className="row">
-        <label className="field small">
-          <span>Steps</span>
-          <input
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex w-[88px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Steps
+          </span>
+          <Input
             type="number"
             min={1}
             value={motion.steps}
             onChange={(e) => setSteps(Number(e.target.value))}
           />
         </label>
-        <div className="field grow">
-          <span>Step speed</span>
-          <div className="speed-modes">
-            <div className="seg">
-              <button
-                type="button"
-                className={pinned ? '' : 'on'}
-                onClick={() => update({ speedMs: null })}
-              >
-                Follow base
-              </button>
-              <button
-                type="button"
-                className={pinned ? 'on' : ''}
+        <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Step speed
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={pinned ? 'fixed' : 'base'}
+              onValueChange={(v) => {
+                if (!v) return
+                if (v === 'base') update({ speedMs: null })
                 // The factor is left alone, so releasing the pin restores it.
-                onClick={() => update({ speedMs: frameSpeedMs(base, factor) })}
-              >
-                Fixed ms
-              </button>
-            </div>
+                else update({ speedMs: frameSpeedMs(base, factor) })
+              }}
+            >
+              <ToggleGroupItem value="base">Follow base</ToggleGroupItem>
+              <ToggleGroupItem value="fixed">Fixed ms</ToggleGroupItem>
+            </ToggleGroup>
 
             {pinned ? (
-              <input
+              <Input
                 type="number"
-                className="ms"
+                className="w-24"
                 min={SPEED_MS_MIN}
                 max={SPEED_MS_MAX}
                 value={draftMs}
@@ -237,23 +274,28 @@ export function MotionControls({ frame, grid }: Props) {
                 }}
               />
             ) : (
-              <div className="chips">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                className="flex-wrap"
+                value={String(factor)}
+                onValueChange={(v) => v && update({ speedFactor: Number(v) })}
+              >
                 {SPEED_PRESETS.map((preset) => (
-                  <button
+                  <ToggleGroupItem
                     key={preset.label}
-                    type="button"
-                    className={preset.factor === factor ? 'chip on' : 'chip'}
-                    onClick={() => update({ speedFactor: preset.factor })}
+                    value={String(preset.factor)}
                     title={`${frameSpeedMs(base, preset.factor)} ms per step at the current base`}
                   >
                     {preset.label}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             )}
           </div>
         </div>
-        <p className="note span">
+        <p className="m-0 basis-full text-xs leading-relaxed text-muted-foreground">
           {pinned ? (
             <>
               Held for <strong>{frameStepMs(base, frame)} ms</strong> per step, fixed

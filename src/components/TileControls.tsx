@@ -1,6 +1,21 @@
+import {
+  ArrowDown,
+  ArrowDownLeft,
+  ArrowDownRight,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpLeft,
+  ArrowUpRight,
+} from 'lucide-react'
 import type { Frame, Grid } from '../types'
 import { divisors, regionOf, shiftCells, snapToDivisor, sourceCols } from '../lib/grid'
 import { useFrameActions } from '../state/useProject'
+import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
+import { Label } from './ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 type Props = { frame: Frame; grid: Grid }
 
@@ -10,16 +25,16 @@ type Props = { frame: Frame; grid: Grid }
  * single call with both deltas set, so a shape moves one cell corner-ways
  * rather than needing two clicks.
  */
-const NUDGES: Array<{ label: string; title: string; dr: number; dc: number } | null> = [
-  { label: '↖', title: 'Nudge up + left', dr: -1, dc: -1 },
-  { label: '↑', title: 'Nudge up', dr: -1, dc: 0 },
-  { label: '↗', title: 'Nudge up + right', dr: -1, dc: 1 },
-  { label: '←', title: 'Nudge left', dr: 0, dc: -1 },
+const NUDGES: Array<{ icon: typeof ArrowUp; title: string; dr: number; dc: number } | null> = [
+  { icon: ArrowUpLeft, title: 'Nudge up + left', dr: -1, dc: -1 },
+  { icon: ArrowUp, title: 'Nudge up', dr: -1, dc: 0 },
+  { icon: ArrowUpRight, title: 'Nudge up + right', dr: -1, dc: 1 },
+  { icon: ArrowLeft, title: 'Nudge left', dr: 0, dc: -1 },
   null,
-  { label: '→', title: 'Nudge right', dr: 0, dc: 1 },
-  { label: '↙', title: 'Nudge down + left', dr: 1, dc: -1 },
-  { label: '↓', title: 'Nudge down', dr: 1, dc: 0 },
-  { label: '↘', title: 'Nudge down + right', dr: 1, dc: 1 },
+  { icon: ArrowRight, title: 'Nudge right', dr: 0, dc: 1 },
+  { icon: ArrowDownLeft, title: 'Nudge down + left', dr: 1, dc: -1 },
+  { icon: ArrowDown, title: 'Nudge down', dr: 1, dc: 0 },
+  { icon: ArrowDownRight, title: 'Nudge down + right', dr: 1, dc: 1 },
 ]
 
 export function TileControls({ frame, grid }: Props) {
@@ -65,104 +80,129 @@ export function TileControls({ frame, grid }: Props) {
   const nudge = (dr: number, dc: number) => setCells(shiftCells(frame.cells, grid, dr, dc, region))
 
   return (
-    <section className="panel">
-      <h3>
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <h3 className="m-0 text-sm font-semibold">
         Pattern tile &amp; drawing
-        <span className="subtle"> · this frame only</span>
+        <span className="font-normal text-muted-foreground"> · this frame only</span>
       </h3>
 
-      <div className="seg">
-        <button
-          type="button"
-          className={isFull ? 'on' : ''}
-          onClick={() => update({ tile: 'full' })}
-        >
-          Full panel
-        </button>
-        <button
-          type="button"
-          className={isFull ? '' : 'on'}
-          onClick={() =>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        value={isFull ? 'full' : 'tile'}
+        onValueChange={(v) => {
+          if (!v || v === (isFull ? 'full' : 'tile')) return
+          if (v === 'full') update({ tile: 'full' })
+          else
             update({
               tile: {
                 yy: snapToDivisor(grid.rows, grid.rows),
                 xx: snapToDivisor(Math.min(grid.rows, sc), sc),
               },
             })
-          }
-        >
-          Repeat a tile
-        </button>
-      </div>
+        }}
+      >
+        <ToggleGroupItem value="full">Full panel</ToggleGroupItem>
+        <ToggleGroupItem value="tile">Repeat a tile</ToggleGroupItem>
+      </ToggleGroup>
 
-      <p className="note">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         The tile is the slice of artwork stored for this frame and repeated across the{' '}
         {grid.rows}x{grid.cols} panel, so it can differ from frame to frame. The panel size itself
         is set once for the whole project.
       </p>
 
       {!isFull && frame.tile !== 'full' && (
-        <div className="row">
-          <label className="field small">
-            <span>Tile rows (yy)</span>
-            <select value={frame.tile.yy} onChange={(e) => setTile({ yy: Number(e.target.value) })}>
-              {divisors(grid.rows).map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Tile rows (yy)
+            </span>
+            <Select value={String(frame.tile.yy)} onValueChange={(v) => setTile({ yy: Number(v) })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {divisors(grid.rows).map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
-          <label className="field small">
-            <span>Tile cols (xx)</span>
-            <select value={frame.tile.xx} onChange={(e) => setTile({ xx: Number(e.target.value) })}>
-              {divisors(sc).map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Tile cols (xx)
+            </span>
+            <Select value={String(frame.tile.xx)} onValueChange={(v) => setTile({ xx: Number(v) })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {divisors(sc).map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
-          <p className="note span">
-            Stored as a {frame.tile.yy}x{frame.tile.xx} pattern and repeated by <code>loadPattern()</code> —
-            only divisors of the{' '}
+          <p className="m-0 basis-full text-xs leading-relaxed text-muted-foreground">
+            Stored as a {frame.tile.yy}x{frame.tile.xx} pattern and repeated by{' '}
+            <code className="rounded bg-muted px-1 py-0.5">loadPattern()</code> — only divisors of
+            the{' '}
             {grid.halfWidth ? `${grid.rows}x${sc} source` : 'panel size'} are offered, because
             tiling repeats whole copies.
           </p>
         </div>
       )}
 
-      <label className="check">
-        <input
-          type="checkbox"
+      <Label className="items-start text-sm font-normal">
+        <Checkbox
+          className="mt-0.5"
           checked={frame.mirror}
-          onChange={(e) => update({ mirror: e.target.checked })}
+          onCheckedChange={(checked) => update({ mirror: checked === true })}
+          aria-label="Mirror left/right"
         />
         <span>
           Mirror left/right{' '}
-          <code>{grid.halfWidth ? 'writePanelRow(mirrored)' : 'mirrorPattern()'}</code>
+          <code className="rounded bg-muted px-1 py-0.5">
+            {grid.halfWidth ? 'writePanelRow(mirrored)' : 'mirrorPattern()'}
+          </code>
         </span>
-      </label>
+      </Label>
       {grid.halfWidth && (
-        <p className="note">
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           The {grid.rows}x{sc} pattern is repeated across the panel; mirroring reflects it instead.
           A half-width panel reflects as each row is fed in, so mirroring applies to vertical
           scrolls and holds, not to left/right scrolls.
         </p>
       )}
 
-      <div className="tools">
-        <button type="button" onClick={clear}>Clear</button>
-        <button type="button" onClick={fill}>Fill</button>
-        <button type="button" onClick={invert}>Invert</button>
-        <div className="nudge dirpad">
-          {NUDGES.map((n) =>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={clear}>Clear</Button>
+          <Button type="button" variant="outline" onClick={fill}>Fill</Button>
+          <Button type="button" variant="outline" onClick={invert}>Invert</Button>
+        </div>
+        <div className="grid w-fit grid-cols-3 gap-1">
+          {NUDGES.map((n, i) =>
             n ? (
-              <button key={n.title} type="button" title={n.title} onClick={() => nudge(n.dr, n.dc)}>
-                {n.label}
-              </button>
+              <Button
+                key={n.title}
+                type="button"
+                variant="outline"
+                size="icon"
+                title={n.title}
+                aria-label={n.title}
+                onClick={() => nudge(n.dr, n.dc)}
+              >
+                <n.icon />
+              </Button>
             ) : (
-              <span key="centre" />
+              // eslint-disable-next-line react/no-array-index-key -- fixed 3x3 layout, centre cell
+              <span key={i} />
             ),
           )}
         </div>

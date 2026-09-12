@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp, Copy, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { Frame, Grid, Group } from '../types'
 import { DEFAULT_LED_COLOR } from '../lib/colors'
@@ -11,6 +12,9 @@ import {
 import { motionSteps, panelView } from '../lib/simulate'
 import { baseSpeedMs, formatFactor, frameStepMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
 
 function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowColors: string[] }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -37,7 +41,12 @@ function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowC
     }
   }, [frame, grid, rowColors])
 
-  return <canvas ref={ref} className="thumb" />
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none h-auto w-full rounded bg-[#0b0f16] [image-rendering:pixelated]"
+    />
+  )
 }
 
 function motionLabel(frame: Frame): string {
@@ -76,7 +85,7 @@ function SequenceTime({
       ? `${runs} passes of ${formatDuration(pass)}, ${basis}`
       : `One pass of this sequence ${basis}`
   return (
-    <span className="run-time" title={title}>
+    <span className="mr-auto cursor-help text-xs tabular-nums whitespace-nowrap text-muted-foreground" title={title}>
       ~{formatDuration(groupDurationMs(base, byId, group))}
     </span>
   )
@@ -101,34 +110,38 @@ export function FrameList() {
   }
 
   return (
-    <section className="panel timeline">
-      <div className="timeline-head">
-        <div className="timeline-title">
-          <h3>Timeline</h3>
-          <span className="run-time" title={`One lap of the timeline ${basis}`}>
+    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <h3 className="m-0 text-sm font-semibold">Timeline</h3>
+          <span
+            className="cursor-help text-xs tabular-nums whitespace-nowrap text-muted-foreground"
+            title={`One lap of the timeline ${basis}`}
+          >
             ~{formatDuration(total)}
           </span>
         </div>
-        <div className="tools">
-          <button type="button" onClick={() => dispatch({ type: 'addFrame' })}>+ Frame</button>
-          <button type="button" onClick={() => dispatch({ type: 'addGroup' })}>+ Sequence</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => dispatch({ type: 'addFrame' })}>+ Frame</Button>
+          <Button type="button" variant="outline" onClick={() => dispatch({ type: 'addGroup' })}>+ Sequence</Button>
         </div>
       </div>
 
-      <div className="groups">
+      <div className="flex flex-col gap-2.5">
         {project.groups.map((group, gi) => (
-          <div className="group" key={group.id}>
-            <header>
-              <input
-                className="group-name"
+          <div className="rounded-lg border bg-muted p-2.5" key={group.id}>
+            <header className="mb-2 flex items-center gap-2">
+              <Input
+                className="max-w-[220px] font-semibold"
                 value={group.name}
                 onChange={(e) =>
                   dispatch({ type: 'updateGroup', id: group.id, patch: { name: e.target.value } })
                 }
               />
-              <label className="repeat">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span>repeat</span>
-                <input
+                <Input
+                  className="w-[58px]"
                   type="number"
                   min={1}
                   value={group.repeat}
@@ -143,42 +156,56 @@ export function FrameList() {
                 <span>x</span>
               </label>
               <SequenceTime group={group} base={base} byId={byId} basis={basis} />
-              <button
+              <Button
                 type="button"
-                className="icon"
+                variant="ghost"
+                size="icon"
                 title="Move sequence up"
+                aria-label="Move sequence up"
                 disabled={gi === 0}
                 onClick={() => dispatch({ type: 'moveGroup', id: group.id, delta: -1 })}
               >
-                ↑
-              </button>
-              <button
+                <ChevronUp />
+              </Button>
+              <Button
                 type="button"
-                className="icon"
+                variant="ghost"
+                size="icon"
                 title="Move sequence down"
+                aria-label="Move sequence down"
                 disabled={gi === project.groups.length - 1}
                 onClick={() => dispatch({ type: 'moveGroup', id: group.id, delta: 1 })}
               >
-                ↓
-              </button>
-              <button
+                <ChevronDown />
+              </Button>
+              <Button
                 type="button"
-                className="icon danger"
+                variant="ghost"
+                size="icon"
+                className="text-destructive hover:text-destructive"
                 title="Delete sequence"
+                aria-label="Delete sequence"
                 onClick={() => dispatch({ type: 'deleteGroup', id: group.id })}
               >
-                ✕
-              </button>
+                <X />
+              </Button>
             </header>
 
-            <div className="strip" onDragOver={(e) => e.preventDefault()} onDrop={() => drop(group.id, group.frameIds.length)}>
+            <div
+              className="flex min-h-24 gap-2 overflow-x-auto pb-1"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => drop(group.id, group.frameIds.length)}
+            >
               {group.frameIds.map((fid, i) => {
                 const frame = byId.get(fid)
                 if (!frame) return null
                 return (
                   <div
                     key={fid}
-                    className={fid === selectedFrameId ? 'frame-card selected' : 'frame-card'}
+                    className={cn(
+                      'group/frame relative flex w-[124px] shrink-0 cursor-grab flex-col gap-1 rounded-lg border bg-card p-2 text-left',
+                      fid === selectedFrameId && 'border-primary ring-1 ring-primary',
+                    )}
                     draggable
                     onDragStart={() => setDragId(fid)}
                     onDragOver={(e) => e.preventDefault()}
@@ -189,18 +216,19 @@ export function FrameList() {
                     onClick={() => dispatch({ type: 'selectFrame', id: fid })}
                   >
                     <FrameThumb frame={frame} grid={project.grid} rowColors={project.rowColors} />
-                    <input
-                      className="frame-name"
+                    <Input
+                      className="h-7 px-1.5 text-[0.76rem]"
                       value={frame.name}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) =>
                         dispatch({ type: 'updateFrame', id: fid, patch: { name: e.target.value } })
                       }
                     />
-                    <span className="frame-meta">
+                    {/* The card is narrow, so the motion label yields before the time does. */}
+                    <span className="flex items-baseline justify-between gap-1.5 text-[0.7rem] text-muted-foreground">
                       {motionLabel(frame)}
                       <span
-                        className="run-time"
+                        className="shrink-0 cursor-help whitespace-nowrap tabular-nums"
                         title={`${motionSteps(frame.motion)} steps of ${frameStepMs(base, frame)} ms${
                           frame.speedMs === null ? ` (${formatFactor(frame.speedFactor)} of base)` : ' (pinned)'
                         }`}
@@ -208,38 +236,46 @@ export function FrameList() {
                         ~{formatDuration(frameDurationMs(base, frame))}
                       </span>
                     </span>
-                    <div className="frame-actions">
-                      <button
+                    <div className="absolute top-1 right-1 hidden gap-0.5 group-hover/frame:flex">
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         title="Duplicate"
+                        aria-label="Duplicate"
                         onClick={(e) => {
                           e.stopPropagation()
                           dispatch({ type: 'duplicateFrame', id: fid })
                         }}
                       >
-                        ⧉
-                      </button>
-                      <button
+                        <Copy />
+                      </Button>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:text-destructive"
                         title="Delete"
+                        aria-label="Delete"
                         onClick={(e) => {
                           e.stopPropagation()
                           dispatch({ type: 'deleteFrame', id: fid })
                         }}
                       >
-                        ✕
-                      </button>
+                        <X />
+                      </Button>
                     </div>
                   </div>
                 )
               })}
-              <button
+              <Button
                 type="button"
-                className="frame-card add"
+                variant="outline"
+                className="h-auto w-[124px] shrink-0 border-dashed text-muted-foreground"
                 onClick={() => dispatch({ type: 'addFrame', groupId: group.id })}
               >
                 + Frame
-              </button>
+              </Button>
             </div>
           </div>
         ))}

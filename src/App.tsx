@@ -1,5 +1,5 @@
+import { Redo2, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import './App.css'
 import { AboutDialog } from './components/AboutDialog'
 import { CodeView } from './components/CodeView'
 import { DesignPresets } from './components/DesignPresets'
@@ -9,7 +9,21 @@ import { MemoryCheck } from './components/MemoryCheck'
 import { MotionControls } from './components/MotionControls'
 import { PanelSetup } from './components/PanelSetup'
 import { Preview } from './components/Preview'
+import { ThemeToggle } from './components/ThemeToggle'
 import { TileControls } from './components/TileControls'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/ui/alert-dialog'
+import { Button } from './components/ui/button'
+import { Separator } from './components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { deserialize, serialize } from './lib/grid'
 import { starterProject } from './state/defaults'
 import { ProjectProvider } from './state/projectStore'
@@ -21,6 +35,7 @@ function Workspace() {
   const { setCells } = useFrameActions(selectedFrame?.id ?? null)
   const [tab, setTab] = useState<'preview' | 'code' | 'memory'>('preview')
   const [about, setAbout] = useState(false)
+  const [confirmNew, setConfirmNew] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -56,32 +71,36 @@ function Workspace() {
   }
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <h1>
+    <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 p-4">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="m-0 flex items-baseline gap-2.5 text-xl">
           LED Pattern Generator
-          <small>draw a pattern, get the Arduino sketch</small>
+          <small className="text-[0.8rem] font-normal text-muted-foreground">
+            draw a pattern, get the Arduino sketch
+          </small>
         </h1>
-        <div className="tools">
-          <button type="button" disabled={!canUndo} onClick={() => dispatch({ type: 'undo' })}>
-            ↶ Undo
-          </button>
-          <button type="button" disabled={!canRedo} onClick={() => dispatch({ type: 'redo' })}>
-            ↷ Redo
-          </button>
-          <span className="divider" />
-          <button type="button" onClick={exportProject}>Save project</button>
-          <button type="button" onClick={() => fileInput.current?.click()}>Open project</button>
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
             type="button"
-            onClick={() => {
-              if (confirm('Discard the current pattern and start over?')) {
-                dispatch({ type: 'loadProject', project: starterProject() })
-              }
-            }}
+            variant="ghost"
+            disabled={!canUndo}
+            onClick={() => dispatch({ type: 'undo' })}
           >
-            New
-          </button>
+            <Undo2 /> Undo
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!canRedo}
+            onClick={() => dispatch({ type: 'redo' })}
+          >
+            <Redo2 /> Redo
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+          <Button type="button" variant="outline" onClick={exportProject}>Save project</Button>
+          <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>Open project</Button>
+          <Button type="button" variant="outline" onClick={() => setConfirmNew(true)}>New</Button>
+          <ThemeToggle />
           <input
             ref={fileInput}
             type="file"
@@ -96,16 +115,35 @@ function Workspace() {
         </div>
       </header>
 
+      <AlertDialog open={confirmNew} onOpenChange={setConfirmNew}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start a new pattern?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This discards the current pattern and starts over. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => dispatch({ type: 'loadProject', project: starterProject() })}
+            >
+              Start over
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PanelSetup />
 
-      <div className="workspace">
-        <div className="editor">
+      <div className="grid grid-cols-1 items-start gap-4 wide:grid-cols-[minmax(0,1fr)_minmax(340px,620px)]">
+        <div className="flex min-w-0 flex-col gap-4">
           {selectedFrame ? (
             <>
-              <section className="panel">
-                <h3>
+              <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+                <h3 className="m-0 text-sm font-semibold">
                   {selectedFrame.name}
-                  <span className="subtle">
+                  <span className="font-normal text-muted-foreground">
                     {' '}
                     · {project.grid.rows} x {project.grid.cols}
                   </span>
@@ -117,41 +155,39 @@ function Workspace() {
                   onCells={(cells, coalesce) => setCells(cells, coalesce)}
                 />
               </section>
-              <div className="controls">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
                 <DesignPresets frame={selectedFrame} grid={project.grid} />
                 <TileControls frame={selectedFrame} grid={project.grid} />
                 <MotionControls frame={selectedFrame} grid={project.grid} />
               </div>
             </>
           ) : (
-            <section className="panel empty">
+            <section className="flex flex-col items-center gap-3 rounded-xl border bg-card p-12 text-muted-foreground">
               <p>No frame selected. Add one from the timeline below.</p>
             </section>
           )}
         </div>
 
-        <aside className="side">
-          <div className="tabs">
-            <button type="button" className={tab === 'preview' ? 'on' : ''} onClick={() => setTab('preview')}>
-              Preview
-            </button>
-            <button type="button" className={tab === 'code' ? 'on' : ''} onClick={() => setTab('code')}>
-              Arduino code
-            </button>
-            <button type="button" className={tab === 'memory' ? 'on' : ''} onClick={() => setTab('memory')}>
-              Memory
-            </button>
-          </div>
-          {tab === 'preview' && <Preview />}
-          {tab === 'code' && <CodeView />}
-          {tab === 'memory' && <MemoryCheck />}
+        <aside className="flex min-w-0 flex-col gap-4">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-4">
+            <TabsList className="w-full">
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsTrigger value="code">Arduino code</TabsTrigger>
+              <TabsTrigger value="memory">Memory</TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview">{tab === 'preview' && <Preview />}</TabsContent>
+            <TabsContent value="code">{tab === 'code' && <CodeView />}</TabsContent>
+            <TabsContent value="memory">{tab === 'memory' && <MemoryCheck />}</TabsContent>
+          </Tabs>
         </aside>
       </div>
 
       <FrameList />
 
-      <footer className="credit">
-        <button type="button" onClick={() => setAbout(true)}>Built by Dushan Pramod</button>
+      <footer className="border-t pt-1 pb-2 text-center">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setAbout(true)}>
+          Built by Dushan Pramod
+        </Button>
       </footer>
 
       <AboutDialog open={about} onClose={() => setAbout(false)} />

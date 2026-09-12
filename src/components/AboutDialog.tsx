@@ -1,41 +1,36 @@
-import { useEffect, useRef } from 'react'
+import { Button } from './ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 const EMAIL = 'dushanpramod@gmail.com'
 
 /** Credit, version and where to send bugs. Opened from the footer. */
 export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const node = dialog.current
-    if (!node) return
-    if (open && !node.open) node.showModal()
-    if (!open && node.open) node.close()
-  }, [open])
-
   return (
-    <dialog ref={dialog} className="about" onClose={onClose} onClick={(e) => {
-      if (e.target === dialog.current) onClose()
-    }}>
-      <div className="about-body">
-        <h2>LED Pattern Generator</h2>
-        <p className="version">Version {__APP_VERSION__}</p>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>LED Pattern Generator</DialogTitle>
+        </DialogHeader>
 
-        <p className="by">Built by Dushan Pramod</p>
+        <p className="text-sm text-muted-foreground">Version {__APP_VERSION__}</p>
+        <p className="text-sm">Built by Dushan Pramod</p>
 
-        <p className="note">
+        <p className="text-sm text-muted-foreground">
           Found a bug, or thought of something that would make this better? Send it over — bug
           reports and improvement suggestions are both welcome.
         </p>
 
-        <a className="mail" href={`mailto:${EMAIL}?subject=${encodeURIComponent('LED Pattern Generator — feedback')}`}>
+        <a
+          className="text-sm text-primary underline-offset-4 hover:underline"
+          href={`mailto:${EMAIL}?subject=${encodeURIComponent('LED Pattern Generator — feedback')}`}
+        >
           {EMAIL}
         </a>
 
-        <div className="about-actions">
-          <button type="button" className="primary" onClick={onClose}>Close</button>
+        <div className="flex justify-end">
+          <Button type="button" onClick={onClose}>Close</Button>
         </div>
-      </div>
-    </dialog>
+      </DialogContent>
+    </Dialog>
   )
 }

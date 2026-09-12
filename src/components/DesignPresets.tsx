@@ -1,9 +1,11 @@
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import type { Design } from '../lib/presets'
 import type { Frame, Grid } from '../types'
 import { regionOf, sourceCols } from '../lib/grid'
 import { DESIGNS, designCols, designRows, stampDesign, tilesGrid } from '../lib/presets'
 import { useProject } from '../state/useProject'
+import { Button } from './ui/button'
 
 type Props = { frame: Frame; grid: Grid }
 
@@ -29,7 +31,11 @@ function Thumb({ design }: { design: Design }) {
     }
   }
   return (
-    <svg className="design-thumb" viewBox={`0 0 ${wide} ${high}`} aria-hidden="true">
+    <svg
+      className="h-auto w-full max-w-[52px] [&_circle]:fill-[#1d2532] [&_circle.on]:fill-[#ff3b30]"
+      viewBox={`0 0 ${wide} ${high}`}
+      aria-hidden="true"
+    >
       {dots}
     </svg>
   )
@@ -94,52 +100,64 @@ export function DesignPresets({ frame, grid }: Props) {
   }, [])
 
   return (
-    <section className="panel designs-panel">
-      <div className="panel-head">
-        <h3>Preset designs</h3>
-        <button
+    <section className="col-span-full flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="m-0 text-sm font-semibold">Preset designs</h3>
+        <Button
           type="button"
-          className="ghost toggle"
+          variant="ghost"
+          size="sm"
           aria-expanded={open}
           aria-controls="design-library"
           onClick={() => setOpen(!open)}
         >
           {open ? 'Collapse' : `Expand (${DESIGNS.length})`}
-        </button>
+        </Button>
       </div>
       {open && (
-        <div id="design-library" className="design-library">
+        <div id="design-library" className="flex flex-col gap-3">
           {groups.map((group) => {
             const shut = collapsed.includes(group.name)
             return (
-              <div key={group.name} className="design-group">
-                <button
+              <div key={group.name} className="flex flex-col gap-2">
+                {/* The whole group header is the hit target, so it drops the button chrome. */}
+                <Button
                   type="button"
-                  className="group-head"
+                  variant="ghost"
+                  className="h-auto w-fit justify-start gap-1.5 px-1 py-0.5"
                   aria-expanded={!shut}
                   aria-controls={`designs-${slug(group.name)}`}
                   onClick={() => toggleGroup(group.name)}
                 >
-                  <span className="caret" aria-hidden="true">
-                    {shut ? '▸' : '▾'}
+                  <span className="text-muted-foreground" aria-hidden="true">
+                    {shut ? <ChevronRight /> : <ChevronDown />}
                   </span>
-                  <h4>{group.name}</h4>
-                  <span className="design-size">{group.items.length}</span>
-                </button>
+                  <h4 className="m-0 text-[0.72rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                    {group.name}
+                  </h4>
+                  <span className="text-[0.62rem] tabular-nums text-muted-foreground">
+                    {group.items.length}
+                  </span>
+                </Button>
                 {!shut && (
-                  <div id={`designs-${slug(group.name)}`} className="designs">
+                  <div
+                    id={`designs-${slug(group.name)}`}
+                    className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2"
+                  >
                     {group.items.map((design) => (
                       <button
                         key={design.id}
                         type="button"
-                        className="design"
+                        className="flex cursor-pointer flex-col items-center gap-1 rounded-md border border-[#222b38] bg-[#0b0f16] px-1 py-1.5 transition-colors hover:border-primary disabled:cursor-default disabled:opacity-25 disabled:hover:border-[#222b38]"
                         disabled={!usable(design)}
                         title={reason(design)}
                         onClick={() => apply(design)}
                       >
                         <Thumb design={design} />
-                        <span className="design-name">{design.name}</span>
-                        <span className="design-size">
+                        <span className="text-center text-[0.7rem] leading-tight text-[#c8cfdb]">
+                          {design.name}
+                        </span>
+                        <span className="text-[0.62rem] tabular-nums text-[#6d7889]">
                           {designRows(design)}x{designCols(design)}
                         </span>
                       </button>
@@ -149,7 +167,7 @@ export function DesignPresets({ frame, grid }: Props) {
               </div>
             )
           })}
-          <p className="note">
+          <p className="m-0 text-xs leading-relaxed text-muted-foreground">
             Picking one replaces this frame's drawing and sets its tile size, so the design repeats
             across the panel. Undo puts the old drawing back.
           </p>

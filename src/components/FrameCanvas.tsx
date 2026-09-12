@@ -184,17 +184,17 @@ export function FrameCanvas({ frame, grid, rowColors, onCells }: Props) {
   }
 
   return (
-    <div className="canvas-wrap" ref={wrapRef}>
+    <div className="flex min-w-0 flex-col gap-2 overflow-x-auto" ref={wrapRef}>
       <canvas
         ref={canvasRef}
-        className="led-canvas"
+        className="block cursor-crosshair touch-none rounded-md border"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endStroke}
         onPointerCancel={endStroke}
         onContextMenu={(e) => e.preventDefault()}
       />
-      <p className="canvas-hint">
+      <p className="m-0 text-xs text-muted-foreground">
         Drag to draw · right-click or ctrl-drag to erase
         {region.rows < grid.rows || region.cols < grid.cols
           ? ` · only the ${region.rows}x${region.cols} region is editable, the rest is generated${
