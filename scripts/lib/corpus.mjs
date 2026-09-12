@@ -28,14 +28,20 @@ function randomFrame(grid, id, rand, sourceCols) {
   const pick = (xs) => xs[Math.floor(rand() * xs.length) % xs.length]
   const sc = sourceCols(grid)
   const tile = rand() < 0.5 ? 'full' : { yy: pick(divisors(grid.rows)), xx: pick(divisors(sc)) }
-  const bandChoices = divisors(grid.rows).filter((n) => n > 1 && n <= 8)
-  const kind = pick(['scroll', 'scroll', 'scroll', 'static', bandChoices.length ? 'band' : 'static'])
+  // Both band axes, each with the counts that divide the side it runs across.
+  const bandAxes = [
+    ['horizontal', divisors(grid.rows).filter((n) => n > 1 && n <= 8)],
+    ['vertical', divisors(grid.cols).filter((n) => n > 1 && n <= 8)],
+  ].filter(([, choices]) => choices.length > 0)
+  const kind = pick(['scroll', 'scroll', 'scroll', 'static', bandAxes.length ? 'band' : 'static'])
   let motion
   if (kind === 'static') motion = { kind: 'static', steps: 1 + Math.floor(rand() * 5) }
   else if (kind === 'band') {
-    const n = pick(bandChoices)
+    const [axis, choices] = pick(bandAxes)
+    const n = pick(choices)
     motion = {
       kind: 'band',
+      axis,
       directions: Array.from({ length: n }, () => rand() < 0.5),
       steps: 1 + Math.floor(rand() * 8),
     }

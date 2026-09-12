@@ -8,7 +8,16 @@ import {
   speedRange,
 } from './speed'
 import { DEFAULT_SPEED } from '../state/defaults'
-import type { Frame, Grid, Hardware, Project, SerializedProject, SpeedControl } from '../types'
+import type {
+  BandAxis,
+  Frame,
+  Grid,
+  Hardware,
+  Motion,
+  Project,
+  SerializedProject,
+  SpeedControl,
+} from '../types'
 
 /**
  * Width of the source array. In half-width mode only the left half is authored
@@ -35,9 +44,17 @@ export function snapToDivisor(value: number, n: number): number {
   return list.reduce((best, d) => (Math.abs(d - value) < Math.abs(best - value) ? d : best), list[0])
 }
 
-/** Band counts that split the rows evenly and leave at least 2 rows per band. */
-export function bandOptions(rows: number): number[] {
-  return divisors(rows).filter((n) => n > 1 && rows / n >= 1 && n <= 8)
+/**
+ * Band counts that split `span` evenly. Capped at 8 because the generated table
+ * carries one direction bit per band in a single byte.
+ */
+export function bandOptions(span: number): number[] {
+  return divisors(span).filter((n) => n > 1 && span / n >= 1 && n <= 8)
+}
+
+/** What a band motion divides: rows for horizontal bands, columns for vertical. */
+export function bandSpan(grid: Grid, axis: BandAxis): number {
+  return axis === 'horizontal' ? grid.rows : grid.cols
 }
 
 /** Re-lays a frame's cells onto a new grid, keeping the top-left content. */
@@ -175,6 +192,15 @@ function migrateSpeed(data: LegacyProject): SpeedControl {
   }
 }
 
+/**
+ * A band frame saved before vertical bands existed always striped the rows and
+ * rotated them sideways, so that is what a missing axis means.
+ */
+function normalizeMotion(motion: Motion): Motion {
+  if (motion.kind !== 'band') return motion
+  return { ...motion, axis: motion.axis === 'vertical' ? 'vertical' : 'horizontal' }
+}
+
 export function deserialize(data: SerializedProject | LegacyProject): Project {
   const size = data.grid.rows * data.grid.cols
   const isLegacy = data.version === 1
@@ -211,6 +237,7 @@ export function deserialize(data: SerializedProject | LegacyProject): Project {
       return {
         ...f,
         cells,
+        motion: normalizeMotion(f.motion),
         speedFactor: clampFactor(stored.speedFactor ?? 1),
         speedMs: speedMs === null ? null : clampMs(speedMs),
       }

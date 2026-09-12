@@ -201,12 +201,20 @@ export function MemoryCheck() {
         >
           {busy ? 'Compiling…' : 'Check memory'}
         </Button>
-        {status.state === 'absent' && (
-          <Button type="button" variant="outline" onClick={() => setSetupOpen(true)}>
-            <PlugZapIcon />
-            Set up compiling
-          </Button>
-        )}
+        {/*
+          Offered whether or not a compiler answered. Without one it is the way
+          in; with one it is still where the helper is explained — where it put
+          arduino-cli, how to stop it, what to check when it stops answering.
+        */}
+        <Button
+          type="button"
+          variant={status.state === 'absent' ? 'outline' : 'ghost'}
+          onClick={() => setSetupOpen(true)}
+          title="How compiling works, and how to set it up"
+        >
+          <PlugZapIcon />
+          {status.state === 'absent' ? 'Set up compiling' : 'Compiling setup'}
+        </Button>
       </div>
 
       <UsageBar

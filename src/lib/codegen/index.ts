@@ -172,6 +172,12 @@ export const FLASH_MODEL = {
   perPatternByte: 1.01,
   perStep: 13.4,
   perBandKind: 138,
+  /**
+   * The second band rotator, paid for only by a timeline that turns bands both
+   * ways. Not separately fitted: it is sized like the horizontal rotator it
+   * sits beside, which is what one axis already costs.
+   */
+  bothBandAxes: 138,
   /** Optional engine pieces, emitted only when the timeline uses them. */
   mirrorCost: 100,
   tilingCost: 192,
@@ -230,6 +236,7 @@ export function estimateMemory(
       storedBytes * FLASH_MODEL.perPatternByte +
       steps.length * FLASH_MODEL.perStep +
       needs.bandCounts.length * FLASH_MODEL.perBandKind +
+      (needs.bandsHorizontal && needs.bandsVertical ? FLASH_MODEL.bothBandAxes : 0) +
       (needs.mirrorPattern || needs.mirrorFeed ? FLASH_MODEL.mirrorCost : 0) +
       (needs.tiled ? FLASH_MODEL.tilingCost : 0) +
       // A hold-only timeline leaves runScroll() out of the sketch entirely.

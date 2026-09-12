@@ -8,7 +8,7 @@ import { FrameList } from './components/FrameList'
 import { MemoryCheck } from './components/MemoryCheck'
 import { MotionControls } from './components/MotionControls'
 import { PanelSetup } from './components/PanelSetup'
-import { Preview } from './components/Preview'
+import { Preview, type PreviewView } from './components/Preview'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TileControls } from './components/TileControls'
 import {
@@ -34,6 +34,15 @@ function Workspace() {
   const { project, selectedFrame, canUndo, canRedo, dispatch } = useProject()
   const { setCells } = useFrameActions(selectedFrame?.id ?? null)
   const [tab, setTab] = useState<'preview' | 'code' | 'memory'>('preview')
+  // Only the open tab is mounted, so the preview's viewing options are kept
+  // here and survive a trip to the code tab.
+  const [previewView, setPreviewView] = useState<PreviewView>({
+    shape: 'flat',
+    sweep: 270,
+    rimFirst: false,
+    rate: 1,
+    soloFrame: false,
+  })
   const [about, setAbout] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -175,7 +184,9 @@ function Workspace() {
               <TabsTrigger value="code">Arduino code</TabsTrigger>
               <TabsTrigger value="memory">Memory</TabsTrigger>
             </TabsList>
-            <TabsContent value="preview">{tab === 'preview' && <Preview />}</TabsContent>
+            <TabsContent value="preview">
+              {tab === 'preview' && <Preview view={previewView} onView={setPreviewView} />}
+            </TabsContent>
             <TabsContent value="code">{tab === 'code' && <CodeView />}</TabsContent>
             <TabsContent value="memory">{tab === 'memory' && <MemoryCheck />}</TabsContent>
           </Tabs>

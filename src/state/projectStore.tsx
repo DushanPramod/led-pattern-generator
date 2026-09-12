@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useReducer, type ReactNode } from 'react'
 import type { Frame, Grid, Group, Project, SerializedProject } from '../types'
-import { canHalfWidth, deserialize, resizeCells, serialize, snapToDivisor, sourceCols } from '../lib/grid'
+import {
+  bandSpan,
+  canHalfWidth,
+  deserialize,
+  resizeCells,
+  serialize,
+  snapToDivisor,
+  sourceCols,
+} from '../lib/grid'
 import { normalizeRowColors } from '../lib/colors'
 import { normalizeSpeedControl } from '../lib/speed'
 import { newFrame, newGroup, starterProject, uid } from './defaults'
@@ -48,11 +56,15 @@ function applyGrid(project: Project, grid: Grid): Project {
           }
     let motion = frame.motion
     if (motion.kind === 'band') {
+      // Vertical bands divide the columns, so a resize has to check the side
+      // the bands actually run across.
+      const span = bandSpan(grid, motion.axis)
       const bands = motion.directions.length
-      if (grid.rows % bands !== 0) {
-        const next = snapToDivisor(bands, grid.rows)
+      if (span % bands !== 0) {
+        const next = snapToDivisor(bands, span)
         motion = {
           kind: 'band',
+          axis: motion.axis,
           steps: motion.steps,
           directions: Array.from({ length: next }, (_, i) => motion.kind === 'band' && !!motion.directions[i]),
         }

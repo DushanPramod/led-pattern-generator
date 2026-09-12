@@ -13,7 +13,24 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 const SCREEN_BG = '#07090d'
 
-export function Preview() {
+// How the panel is being looked at, as opposed to what it plays. The preview
+// unmounts whenever another tab is open, so this is held by the workspace and
+// handed back in: coming back from the code tab keeps the shape you picked.
+export type PreviewView = {
+  shape: 'flat' | 'round' | 'fan'
+  sweep: number
+  rimFirst: boolean
+  rate: number
+  soloFrame: boolean
+}
+
+export function Preview({
+  view,
+  onView,
+}: {
+  view: PreviewView
+  onView: (view: PreviewView) => void
+}) {
   const { project, selectedFrame } = useProject()
   const { grid, rowColors } = project
   // Every step in the preview is a multiple of this, so the timeline is rebuilt
@@ -21,12 +38,10 @@ export function Preview() {
   const base = baseSpeedMs(project.speed)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(true)
-  const [rate, setRate] = useState(1)
-  const [soloFrame, setSoloFrame] = useState(false)
-  const [shape, setShape] = useState<'flat' | 'round' | 'fan'>('flat')
-  const [sweep, setSweep] = useState(270)
-  const [rimFirst, setRimFirst] = useState(false)
   const [rawStep, setStep] = useState(0)
+  const { shape, sweep, rimFirst, rate, soloFrame } = view
+  const set = <K extends keyof PreviewView>(key: K, value: PreviewView[K]) =>
+    onView({ ...view, [key]: value })
 
   const steps = useMemo(() => {
     if (soloFrame && selectedFrame) {
@@ -181,7 +196,7 @@ export function Preview() {
         <Label className="text-sm font-normal">
           <Checkbox
             checked={soloFrame}
-            onCheckedChange={(checked) => setSoloFrame(checked === true)}
+            onCheckedChange={(checked) => set('soloFrame', checked === true)}
             aria-label="This frame only"
           />
           This frame only
@@ -191,7 +206,7 @@ export function Preview() {
           type="single"
           variant="outline"
           value={shape}
-          onValueChange={(v) => v && setShape(v as typeof shape)}
+          onValueChange={(v) => v && set('shape', v as PreviewView['shape'])}
         >
           <ToggleGroupItem value="flat">Flat</ToggleGroupItem>
           <ToggleGroupItem value="round">Round</ToggleGroupItem>
@@ -204,7 +219,7 @@ export function Preview() {
           <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
             Playback
           </span>
-          <Select value={String(rate)} onValueChange={(v) => setRate(Number(v))}>
+          <Select value={String(rate)} onValueChange={(v) => set('rate', Number(v))}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -226,7 +241,7 @@ export function Preview() {
               <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
                 Sweep
               </span>
-              <Select value={String(sweep)} onValueChange={(v) => setSweep(Number(v))}>
+              <Select value={String(sweep)} onValueChange={(v) => set('sweep', Number(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -243,7 +258,7 @@ export function Preview() {
           <Label className="text-sm font-normal">
             <Checkbox
               checked={rimFirst}
-              onCheckedChange={(checked) => setRimFirst(checked === true)}
+              onCheckedChange={(checked) => set('rimFirst', checked === true)}
               aria-label="Row 1 at the rim (strips wired inwards)"
             />
             Row 1 at the rim (strips wired inwards)

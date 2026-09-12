@@ -27,6 +27,10 @@ export const patternBytes = (g: Grid) => Math.ceil(sourceCols(g) / 8)
 export type EngineNeeds = {
   /** Band counts used on the timeline; no band frames means no band code. */
   bandCounts: number[]
+  /** Row bands rotating left or right — the horizontal rotator. */
+  bandsHorizontal: boolean
+  /** Column bands rotating up or down — the vertical rotator. */
+  bandsVertical: boolean
   /** A half-width panel reflects the pattern as it is fed in. */
   mirrorFeed: boolean
   /** A full-width panel reflects the pattern buffer itself. */
@@ -444,8 +448,12 @@ void shiftPanelRight() {
   return `${trim}${trim ? '\n' : ''}${vertical}\n\n${horizontal}`
 }
 
-function emitBands(): string {
-  return `/**
+/** Only the rotator(s) the timeline's band frames actually turn. */
+function emitBands(needs: EngineNeeds): string {
+  const parts: string[] = []
+
+  if (needs.bandsHorizontal) {
+    parts.push(`/**
  * Splits the panel into equal horizontal bands, each rotating left or right
  * independently. One bit of ${'`'}directions${'`'} per band: set means rightwards.
  */
@@ -466,7 +474,41 @@ void scrollBands(uint8_t bandCount, uint8_t directions) {
       }
     }
   }
-}`
+}`)
+  }
+
+  // The columns of a band are not byte-aligned, so this one moves pixel by
+  // pixel rather than borrowing the row shifters above.
+  if (needs.bandsVertical) {
+    parts.push(`/**
+ * Splits the panel into equal vertical bands, each rotating up or down
+ * independently. One bit of ${'`'}directions${'`'} per band: set means downwards.
+ */
+void scrollBandsVertical(uint8_t bandCount, uint8_t directions) {
+  uint8_t bandWidth = PANEL_COLS / bandCount;
+  for (uint8_t band = 0; band < bandCount; band++) {
+    bool downwards = directions & (1 << band);
+    for (uint8_t offset = 0; offset < bandWidth; offset++) {
+      uint8_t col = band * bandWidth + offset;
+      if (downwards) {
+        bool carry = framePixel(PANEL_ROWS - 1, col);
+        for (uint8_t row = PANEL_ROWS - 1; row > 0; row--) {
+          setFramePixel(row, col, framePixel(row - 1, col));
+        }
+        setFramePixel(0, col, carry);
+      } else {
+        bool carry = framePixel(0, col);
+        for (uint8_t row = 0; row + 1 < PANEL_ROWS; row++) {
+          setFramePixel(row, col, framePixel(row + 1, col));
+        }
+        setFramePixel(PANEL_ROWS - 1, col, carry);
+      }
+    }
+  }
+}`)
+  }
+
+  return parts.join('\n\n')
 }
 
 function emitMotions(needs: EngineNeeds): string {
@@ -512,12 +554,20 @@ void runHold(uint16_t stepMs, uint16_t steps) {
 }`)
   }
 
-  if (needs.bandCounts.length > 0) {
-    parts.push(`void runBands(uint8_t bandCount, uint8_t directions, uint16_t stepMs, uint16_t steps) {
+  if (needs.bandsHorizontal || needs.bandsVertical) {
+    // A timeline that turns bands one way only knows which rotator it means, so
+    // it is called directly; only a mixed one pays for the axis argument.
+    const both = needs.bandsHorizontal && needs.bandsVertical
+    const axisParam = both ? 'bool vertical, ' : ''
+    const turn = both
+      ? `    if (vertical) scrollBandsVertical(bandCount, directions);
+    else scrollBands(bandCount, directions);`
+      : `    ${needs.bandsVertical ? 'scrollBandsVertical' : 'scrollBands'}(bandCount, directions);`
+    parts.push(`void runBands(uint8_t bandCount, uint8_t directions, ${axisParam}uint16_t stepMs, uint16_t steps) {
   stepStartedAt = millis();
   for (uint16_t step = 0; step < steps; step++) {
     holdFrame(stepMs);
-    scrollBands(bandCount, directions);
+${turn}
   }
 }`)
   }
@@ -537,7 +587,7 @@ export function emitEngine(
     emitDisplay(hw, speed, needs),
     emitPatternLoading(needs, options),
     emitShifts(g),
-    ...(needs.bandCounts.length > 0 ? [emitBands()] : []),
+    emitBands(needs),
     emitMotions(needs),
   ]
   return parts.filter(Boolean).join('\n\n')

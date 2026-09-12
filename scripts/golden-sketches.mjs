@@ -86,7 +86,7 @@ function corpus() {
   }
   {
     const a = frame(GODD, 'Bands', checker, {
-      motion: { kind: 'band', directions: [true, false, true, false], steps: 6 },
+      motion: { kind: 'band', axis: 'horizontal', directions: [true, false, true, false], steps: 6 },
     })
     out.push(project('OddCols', GODD, [a], [{ id: 'g0', name: 'Bands', repeat: 3, frameIds: [a.id] }]))
   }

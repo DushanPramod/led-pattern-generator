@@ -192,6 +192,37 @@ export function multidirection(m: Buffer, grid: Grid, directions: boolean[]) {
   }
 }
 
+/**
+ * The same split turned a quarter turn: the columns are divided into
+ * directions.length equal bands, each rotating up (false) or down (true) with
+ * wraparound.
+ */
+export function multidirectionVertical(m: Buffer, grid: Grid, directions: boolean[]) {
+  const { rows, cols } = grid
+  const bands = directions.length
+  const w = Math.floor(cols / bands)
+  for (let cc = 0; cc < bands; cc++) {
+    const temp = new Uint8Array(w)
+    if (!directions[cc]) {
+      for (let i = 0; i < w; i++) temp[i] = m[idx(grid, 0, i + cc * w)]
+      for (let i = 0; i < rows - 1; i++) {
+        for (let j = 0; j < w; j++) {
+          m[idx(grid, i, j + cc * w)] = m[idx(grid, i + 1, j + cc * w)]
+        }
+      }
+      for (let i = 0; i < w; i++) m[idx(grid, rows - 1, i + cc * w)] = temp[i]
+    } else {
+      for (let i = 0; i < w; i++) temp[i] = m[idx(grid, rows - 1, i + cc * w)]
+      for (let i = rows - 1; i > 0; i--) {
+        for (let j = 0; j < w; j++) {
+          m[idx(grid, i, j + cc * w)] = m[idx(grid, i - 1, j + cc * w)]
+        }
+      }
+      for (let i = 0; i < w; i++) m[idx(grid, 0, i + cc * w)] = temp[i]
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Timeline rendering
 // ---------------------------------------------------------------------------
@@ -261,7 +292,8 @@ export function advance(
 ) {
   if (motion.kind === 'static') return
   if (motion.kind === 'band') {
-    multidirection(m, grid, motion.directions)
+    if (motion.axis === 'vertical') multidirectionVertical(m, grid, motion.directions)
+    else multidirection(m, grid, motion.directions)
     return
   }
   if (motion.updown === 1) {

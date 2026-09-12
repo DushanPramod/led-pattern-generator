@@ -66,7 +66,7 @@ const mirrorCases = [
   [true, HALF, scroll(0, -1), false, 'half-width sideways feeds columns, cannot reflect'],
   [true, HALF, scroll(0, 1), false, 'half-width sideways feeds columns, cannot reflect'],
   [true, HALF, { kind: 'static', steps: 2 }, true, 'half-width held reflects on fill'],
-  [true, HALF, { kind: 'band', directions: [true, false], steps: 3 }, true, 'half-width bands'],
+  [true, HALF, { kind: 'band', axis: 'horizontal', directions: [true, false], steps: 3 }, true, 'half-width bands'],
 ]
 for (const [mirror, grid, motion, expected, why] of mirrorCases) {
   const got = sim.mirrorApplies(frameWith(mirror, motion), grid)
@@ -79,8 +79,8 @@ const preloadCases = [
   [scroll(1, 0), true, true, 'scroll with preload asked for'],
   [{ kind: 'static', steps: 2 }, false, true, 'a held frame must be on screen'],
   [{ kind: 'static', steps: 2 }, true, true, 'held, preload asked for'],
-  [{ kind: 'band', directions: [true], steps: 2 }, false, true, 'bands shift what is already shown'],
-  [{ kind: 'band', directions: [true], steps: 2 }, true, true, 'bands, preload asked for'],
+  [{ kind: 'band', axis: 'horizontal', directions: [true], steps: 2 }, false, true, 'bands shift what is already shown'],
+  [{ kind: 'band', axis: 'horizontal', directions: [true], steps: 2 }, true, true, 'bands, preload asked for'],
 ]
 for (const [motion, preload, expected, why] of preloadCases) {
   const got = sim.needsPreload(frameWith(false, motion, preload))

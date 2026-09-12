@@ -187,10 +187,28 @@ export function BridgeSetupDialog({
         <DialogHeader>
           <DialogTitle>Measure memory for real</DialogTitle>
           <DialogDescription>
-            Flash is estimated until something compiles the sketch, and a browser cannot. Run a
-            small helper on your own computer and this page will talk to it directly: it finds
-            arduino-cli, installs it if you have not got it, and reports the compiler&rsquo;s own
-            figures. No admin rights, and no Node.js.
+            {status.state === 'ready' ? (
+              status.via === 'dev' ? (
+                <>
+                  The dev server is compiling for you, so the figures in the Memory tab are the
+                  compiler&rsquo;s own. Anyone using the deployed site instead runs the helper
+                  below — the steps are here so you can see what they get.
+                </>
+              ) : (
+                <>
+                  The helper is running and this page is talking to it, so the figures in the
+                  Memory tab are the compiler&rsquo;s own. What it does, where it put things and
+                  what to check if it stops answering are all below.
+                </>
+              )
+            ) : (
+              <>
+                Flash is estimated until something compiles the sketch, and a browser cannot. Run a
+                small helper on your own computer and this page will talk to it directly: it finds
+                arduino-cli, installs it if you have not got it, and reports the compiler&rsquo;s
+                own figures. No admin rights, and no Node.js.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -275,9 +293,15 @@ export function BridgeSetupDialog({
                       The page finds the helper on its own, on reload or when you press this:
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button type="button" size="sm" onClick={() => void recheck()} disabled={checking}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={status.state === 'ready' ? 'outline' : 'default'}
+                        onClick={() => void recheck()}
+                        disabled={checking}
+                      >
                         {checking ? <LoaderCircleIcon className="animate-spin" /> : <RefreshCwIcon />}
-                        {checking ? 'Looking…' : 'Connect'}
+                        {checking ? 'Looking…' : status.state === 'ready' ? 'Check again' : 'Connect'}
                       </Button>
                       {status.state === 'ready' && (
                         <span className="text-[0.72rem] text-primary">

@@ -28,6 +28,8 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
   let mirrorPattern = false
   let scroll = false
   let hold = false
+  let bandsHorizontal = false
+  let bandsVertical = false
   let tiled = false
   let scaledSpeed = false
   let fixedSpeed = false
@@ -35,6 +37,10 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
   for (const frame of played) {
     if (frame.motion.kind === 'scroll') scroll = true
     if (frame.motion.kind === 'static') hold = true
+    if (frame.motion.kind === 'band') {
+      if (frame.motion.axis === 'vertical') bandsVertical = true
+      else bandsHorizontal = true
+    }
     if (frame.speedMs !== null) fixedSpeed = true
     else if (encodeFactor(frame.speedFactor) !== SCALE_UNIT) scaledSpeed = true
     const region = regionOf(frame, grid)
@@ -48,6 +54,8 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
 
   return {
     bandCounts: usedBandCounts(played),
+    bandsHorizontal,
+    bandsVertical,
     mirrorFeed,
     mirrorPattern,
     scroll,
@@ -60,6 +68,8 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
 
 const FLAG_MIRROR = 1
 const FLAG_PRELOAD = 2
+/** Band frames only: the bands stripe the columns and travel up or down. */
+const FLAG_BANDS_VERTICAL = 4
 
 export type StepRow = {
   symbol: string
@@ -82,7 +92,9 @@ export type StepRow = {
 function directionWord(frame: Frame): string {
   const m = frame.motion
   if (m.kind === 'static') return `hold ${m.steps}`
-  if (m.kind === 'band') return `${m.directions.length} bands, ${m.steps} steps`
+  if (m.kind === 'band') {
+    return `${m.directions.length} ${m.axis === 'vertical' ? 'column' : 'row'} bands, ${m.steps} steps`
+  }
   const parts: string[] = []
   if (m.updown === 1) parts.push('up')
   if (m.updown === -1) parts.push('down')
@@ -101,7 +113,10 @@ export function makeStep(frame: Frame, grid: Grid, symbol: string): StepRow {
     symbol,
     tileRows: region.rows,
     tileCols: region.cols,
-    flags: (mirrored ? FLAG_MIRROR : 0) | (needsPreload(frame) ? FLAG_PRELOAD : 0),
+    flags:
+      (mirrored ? FLAG_MIRROR : 0) |
+      (needsPreload(frame) ? FLAG_PRELOAD : 0) |
+      (motion.kind === 'band' && motion.axis === 'vertical' ? FLAG_BANDS_VERTICAL : 0),
     motion:
       motion.kind === 'static'
         ? 'MOTION_HOLD'
@@ -214,10 +229,14 @@ export function emitTypes(needs: EngineNeeds): string {
       : []),
   ]
 
+  const verticalFlag = needs.bandsVertical
+    ? `\n#define FLAG_BANDS_VERTICAL ${FLAG_BANDS_VERTICAL}`
+    : ''
+
   return `enum Motion : uint8_t { MOTION_SCROLL, MOTION_HOLD, MOTION_BANDS };
 
 #define FLAG_MIRROR ${FLAG_MIRROR}
-#define FLAG_PRELOAD ${FLAG_PRELOAD}
+#define FLAG_PRELOAD ${FLAG_PRELOAD}${verticalFlag}
 
 /** One entry of the timeline: a pattern plus how to move it. */
 struct Step {
@@ -253,9 +272,13 @@ export function emitPlayer(needs: EngineNeeds): string {
       runHold(stepMs, step.steps);
       break;`)
   }
-  if (needs.bandCounts.length > 0) {
+  if (needs.bandsHorizontal || needs.bandsVertical) {
+    // The axis argument only exists when the timeline turns bands both ways.
+    const axisArg = needs.bandsHorizontal && needs.bandsVertical
+      ? 'step.flags & FLAG_BANDS_VERTICAL, '
+      : ''
     branches.push(`    case MOTION_BANDS:
-      runBands(step.bandCount, step.bandDirections, stepMs, step.steps);
+      runBands(step.bandCount, step.bandDirections, ${axisArg}stepMs, step.steps);
       break;`)
   }
 

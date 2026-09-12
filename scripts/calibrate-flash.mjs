@@ -134,7 +134,7 @@ function build(grid, designCount, pixelsEach, bandKinds, opts = {}) {
     fill(f, grid, pixelsEach, i)
     f.motion =
       i < bandKinds
-        ? { kind: 'band', directions: Array.from({ length: i === 0 ? 2 : 4 }, (_, k) => k % 2 === 0), steps: 16 }
+        ? { kind: 'band', axis: 'horizontal', directions: Array.from({ length: i === 0 ? 2 : 4 }, (_, k) => k % 2 === 0), steps: 16 }
         : opts.hold
           ? { kind: 'static', steps: 24 }
           : { kind: 'scroll', updown: 1, leftright: 0, steps: grid.rows }

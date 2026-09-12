@@ -52,7 +52,9 @@ function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowC
 function motionLabel(frame: Frame): string {
   const m = frame.motion
   if (m.kind === 'static') return `hold ${m.steps}`
-  if (m.kind === 'band') return `${m.directions.length} bands, ${m.steps}`
+  if (m.kind === 'band') {
+    return `${m.directions.length} bands ${m.axis === 'vertical' ? '↑↓' : '←→'}, ${m.steps}`
+  }
   const parts: string[] = []
   if (m.updown === 1) parts.push('up')
   if (m.updown === -1) parts.push('down')

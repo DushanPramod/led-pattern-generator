@@ -42,8 +42,9 @@ The hex is legible as the art itself, which makes patterns easy to tweak by hand
   the source size are offered, since tiling repeats whole copies.
 - **Half-width source** - as in `Matrix20x48`: store the pattern `cols/2` wide and let the panel
   repeat or reflect it, halving what a pattern costs.
-- **Movement** - `runScroll()` in eight directions, `runHold()`, or `scrollBands()` where each
-  horizontal band moves left or right independently.
+- **Movement** - `runScroll()` in eight directions, `runHold()`, or bands: `scrollBands()` where
+  each horizontal band of rows moves left or right independently, and `scrollBandsVertical()` where
+  each vertical band of columns moves up or down.
 - **Pins** - configurable under *Wiring & pins*, defaulting to the example wiring
   (`data1=2, str1=3, clock1=4, data2=5, clock2=6`).
 - **Speed** - a project-level decision under *Speed*. Either the build has an analog preset

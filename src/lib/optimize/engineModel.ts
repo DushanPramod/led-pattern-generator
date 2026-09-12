@@ -189,6 +189,29 @@ export function makeEngine(grid: Grid, options: CodegenOptions = NO_PASSES) {
     }
   }
 
+  function scrollBandsVertical(bandCount: number, directions: number) {
+    const bandWidth = Math.floor(PANEL_COLS / bandCount)
+    for (let band = 0; band < bandCount; band++) {
+      const downwards = !!(directions & (1 << band))
+      for (let offset = 0; offset < bandWidth; offset++) {
+        const col = band * bandWidth + offset
+        if (downwards) {
+          const carry = framePixel(PANEL_ROWS - 1, col)
+          for (let row = PANEL_ROWS - 1; row > 0; row--) {
+            setFramePixel(row, col, framePixel(row - 1, col))
+          }
+          setFramePixel(0, col, carry)
+        } else {
+          const carry = framePixel(0, col)
+          for (let row = 0; row + 1 < PANEL_ROWS; row++) {
+            setFramePixel(row, col, framePixel(row + 1, col))
+          }
+          setFramePixel(PANEL_ROWS - 1, col, carry)
+        }
+      }
+    }
+  }
+
   /** Unpacks the bit-packed frame buffer into one byte per pixel, for diffing. */
   function snapshot(): Uint8Array {
     const out = new Uint8Array(PANEL_ROWS * PANEL_COLS)
@@ -212,6 +235,7 @@ export function makeEngine(grid: Grid, options: CodegenOptions = NO_PASSES) {
     shiftPanelLeft,
     shiftPanelRight,
     scrollBands,
+    scrollBandsVertical,
     snapshot,
   }
 }
@@ -219,7 +243,7 @@ export function makeEngine(grid: Grid, options: CodegenOptions = NO_PASSES) {
 export type Engine = ReturnType<typeof makeEngine>
 
 export const bandMask = (directions: boolean[]): number =>
-  directions.reduce((mask, right, i) => mask | (right ? 1 << i : 0), 0)
+  directions.reduce((mask, forward, i) => mask | (forward ? 1 << i : 0), 0)
 
 /**
  * How a frame's pattern reaches the engine. Passes that share, pool or re-encode
@@ -301,7 +325,9 @@ export function runEngine(
           } else if (motion.kind === 'band') {
             // runBands holds first, then moves.
             out.push(engine.snapshot())
-            engine.scrollBands(motion.directions.length, bandMask(motion.directions))
+            const turn =
+              motion.axis === 'vertical' ? engine.scrollBandsVertical : engine.scrollBands
+            turn(motion.directions.length, bandMask(motion.directions))
           } else {
             out.push(engine.snapshot())
           }

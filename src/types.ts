@@ -54,10 +54,21 @@ export type SpeedControl = {
 
 export type Tile = { yy: number; xx: number } | 'full'
 
+/**
+ * Which way a band motion splits the panel, and so which way its bands travel.
+ * `horizontal` stripes the rows and rotates each left or right; `vertical`
+ * stripes the columns and rotates each up or down.
+ */
+export type BandAxis = 'horizontal' | 'vertical'
+
 export type Motion =
   | { kind: 'static'; steps: number }
   | { kind: 'scroll'; updown: -1 | 0 | 1; leftright: -1 | 0 | 1; steps: number }
-  | { kind: 'band'; directions: boolean[]; steps: number }
+  /**
+   * Equal stripes that move independently, one `directions` entry each:
+   * false is the ← left / ↑ up way, true is → right / ↓ down.
+   */
+  | { kind: 'band'; axis: BandAxis; directions: boolean[]; steps: number }
 
 export type Frame = {
   id: string

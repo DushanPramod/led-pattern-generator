@@ -9,8 +9,8 @@ import {
   ArrowUpRight,
 } from 'lucide-react'
 import { useState, type ComponentType } from 'react'
-import type { Frame, Grid, Motion } from '../types'
-import { bandOptions } from '../lib/grid'
+import type { BandAxis, Frame, Grid, Motion } from '../types'
+import { bandOptions, bandSpan } from '../lib/grid'
 import { playedFrames } from '../lib/codegen/designs'
 import { engineNeeds, formatStep, makeStep } from '../lib/codegen/loop'
 import {
@@ -55,7 +55,11 @@ export function MotionControls({ frame, grid }: Props) {
   const { project } = useProject()
   const { update } = useFrameActions(frame.id)
   const { motion } = frame
-  const bands = bandOptions(grid.rows)
+  // Horizontal bands stripe the rows, vertical ones the columns, so each axis
+  // has its own set of counts that divide evenly.
+  const rowBands = bandOptions(grid.rows)
+  const colBands = bandOptions(grid.cols)
+  const bands = motion.kind === 'band' ? bandOptions(bandSpan(grid, motion.axis)) : rowBands
   const base = baseSpeedMs(project.speed)
   const factor = clampFactor(frame.speedFactor)
   const pinned = frame.speedMs !== null
@@ -91,11 +95,36 @@ export function MotionControls({ frame, grid }: Props) {
     else if (kind === 'scroll')
       update({ motion: { kind: 'scroll', updown: 1, leftright: 0, steps: grid.rows } })
     else {
-      const n = bands[0] ?? 2
+      const axis: BandAxis = rowBands.length > 0 ? 'horizontal' : 'vertical'
+      const n = bandOptions(bandSpan(grid, axis))[0] ?? 2
       update({
-        motion: { kind: 'band', directions: Array.from({ length: n }, (_, i) => i % 2 === 1), steps: 32 },
+        motion: {
+          kind: 'band',
+          axis,
+          directions: Array.from({ length: n }, (_, i) => i % 2 === 1),
+          steps: 32,
+        },
       })
     }
+  }
+
+  /**
+   * Turning the split a quarter turn keeps the band count when the other side
+   * of the panel divides by it too, and otherwise takes that side's smallest.
+   */
+  const setAxis = (axis: BandAxis) => {
+    if (motion.kind !== 'band' || axis === motion.axis) return
+    const options = bandOptions(bandSpan(grid, axis))
+    const count = motion.directions.length
+    const n = options.includes(count) ? count : (options[0] ?? count)
+    update({
+      motion: {
+        kind: 'band',
+        axis,
+        steps: motion.steps,
+        directions: Array.from({ length: n }, (_, i) => motion.kind === 'band' && !!motion.directions[i]),
+      },
+    })
   }
 
   const setSteps = (steps: number) => update({ motion: { ...motion, steps: Math.max(1, steps) } })
@@ -114,8 +143,12 @@ export function MotionControls({ frame, grid }: Props) {
         <ToggleGroupItem value="static">Hold</ToggleGroupItem>
         <ToggleGroupItem
           value="band"
-          disabled={bands.length === 0}
-          title={bands.length === 0 ? 'Needs a row count divisible into bands' : 'Split rows into bands'}
+          disabled={rowBands.length === 0 && colBands.length === 0}
+          title={
+            rowBands.length === 0 && colBands.length === 0
+              ? 'Needs a row or column count divisible into bands'
+              : 'Split the panel into bands that move independently'
+          }
         >
           Bands
         </ToggleGroupItem>
@@ -168,6 +201,32 @@ export function MotionControls({ frame, grid }: Props) {
 
       {motion.kind === 'band' && (
         <>
+          <div className="flex flex-col gap-1">
+            <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+              Split
+            </span>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={motion.axis}
+              onValueChange={(v) => v && setAxis(v as BandAxis)}
+            >
+              <ToggleGroupItem
+                value="horizontal"
+                disabled={rowBands.length === 0}
+                title="Stripes of rows, each sliding left or right"
+              >
+                Rows ←→
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="vertical"
+                disabled={colBands.length === 0}
+                title="Stripes of columns, each sliding up or down"
+              >
+                Columns ↑↓
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
           <label className="flex flex-col gap-1">
             <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
               Bands
@@ -179,6 +238,7 @@ export function MotionControls({ frame, grid }: Props) {
                 update({
                   motion: {
                     kind: 'band',
+                    axis: motion.axis,
                     steps: motion.steps,
                     directions: Array.from({ length: n }, (_, i) => !!motion.directions[i]),
                   },
@@ -191,7 +251,8 @@ export function MotionControls({ frame, grid }: Props) {
               <SelectContent>
                 {bands.map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    {n} bands of {grid.rows / n} rows
+                    {n} bands of {bandSpan(grid, motion.axis) / n}{' '}
+                    {motion.axis === 'vertical' ? 'columns' : 'rows'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -212,7 +273,15 @@ export function MotionControls({ frame, grid }: Props) {
                 }}
               >
                 <span className="text-muted-foreground">Band {i + 1}</span>
-                <span>{dir ? '→ right' : '← left'}</span>
+                <span>
+                  {motion.axis === 'vertical'
+                    ? dir
+                      ? '↓ down'
+                      : '↑ up'
+                    : dir
+                      ? '→ right'
+                      : '← left'}
+                </span>
               </Button>
             ))}
           </div>
