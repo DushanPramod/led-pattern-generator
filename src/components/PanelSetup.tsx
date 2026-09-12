@@ -1,5 +1,7 @@
+import { CircuitBoardIcon } from 'lucide-react'
 import { useState } from 'react'
 import { PanelColors } from './PanelColors'
+import { WiringDiagramDialog } from './WiringDiagram'
 import { SpeedSetup } from './SpeedSetup'
 import { useProject } from '../state/useProject'
 import { estimateSram } from '../lib/codegen'
@@ -46,6 +48,7 @@ export function PanelSetup() {
   const { project, dispatch } = useProject()
   const { grid, hardware } = project
   const [showPins, setShowPins] = useState(false)
+  const [showDiagram, setShowDiagram] = useState(false)
   const [showSpeed, setShowSpeed] = useState(false)
   const [showColors, setShowColors] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
@@ -234,7 +237,13 @@ export function PanelSetup() {
         <Button type="button" variant="ghost" onClick={() => setShowPins((v) => !v)}>
           {showPins ? 'Hide wiring' : 'Wiring & pins'}
         </Button>
+
+        <Button type="button" variant="ghost" onClick={() => setShowDiagram(true)}>
+          <CircuitBoardIcon /> Wiring diagram
+        </Button>
       </div>
+
+      <WiringDiagramDialog open={showDiagram} onClose={() => setShowDiagram(false)} />
 
       <AlertDialog open={pendingResize !== null} onOpenChange={(open) => !open && cancelResize()}>
         <AlertDialogContent>
