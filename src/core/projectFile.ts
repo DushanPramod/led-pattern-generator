@@ -9,6 +9,10 @@ import {
 /** What the file picker offers; old `.ledproj.json` files are plain JSON too. */
 export const PROJECT_FILE_ACCEPT = 'application/json,.json'
 
+/** Shown wherever projects are saved or opened while the file format is still settling. */
+export const PROJECT_FILE_COMPATIBILITY_WARNING =
+  'This app is still under development. The project file format may change, so files saved now are not guaranteed to open in later versions.'
+
 export function buildProjectFile(type: ProjectTypeId, meta: ProjectMeta, data: unknown): ProjectFile {
   return { format: PROJECT_FILE_FORMAT, formatVersion: 1, type, meta, data }
 }

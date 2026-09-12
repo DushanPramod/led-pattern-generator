@@ -231,6 +231,10 @@ name and description, and a `data` block owned by the project type). **Open proj
 landing page reads that file and routes to the right editor. Older
 `.ledproj.json` files, which are a bare matrix project, still open as Matrix Budurasmala.
 
+> **Warning:** the app is still under development and the project file format may change. A file
+> saved now is not guaranteed to open in a later version. The landing page says the same, and
+> **Save project** shows it in a confirmation modal before downloading.
+
 ## Project structure
 
 The app hosts several kinds of circuit ("project types"); the landing page creates or opens a

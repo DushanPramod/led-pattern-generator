@@ -1,7 +1,8 @@
-import { Redo2, Save, Undo2 } from 'lucide-react'
+import { Redo2, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppFooter } from '@/components/AppFooter'
 import { AppHeader } from '@/components/AppHeader'
+import { SaveProjectButton } from '@/components/SaveProjectButton'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -80,9 +81,7 @@ function Workspace() {
           <Redo2 /> Redo
         </Button>
         <Separator orientation="vertical" className="h-6" />
-        <Button type="button" variant="outline" onClick={saveProject}>
-          <Save /> Save project
-        </Button>
+        <SaveProjectButton onSave={saveProject} />
       </AppHeader>
 
       <PanelSetup />

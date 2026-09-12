@@ -1,4 +1,4 @@
-import { ArrowRight, FolderOpen, Plus } from 'lucide-react'
+import { ArrowRight, FolderOpen, Plus, TriangleAlert } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { AppFooter } from '@/components/AppFooter'
 import { AppHeader } from '@/components/AppHeader'
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { readLastProject } from '@/core/lastProject'
 import { useOpenProjectFile } from '@/core/navigation'
-import { newProjectFile } from '@/core/projectFile'
+import { PROJECT_FILE_COMPATIBILITY_WARNING, newProjectFile } from '@/core/projectFile'
 import type { ProjectTypeId } from '@/core/projectTypes'
 import { DEFAULT_PROJECT_TYPE, PROJECT_TYPES, getProjectType } from '@/core/registry'
 import { useNavigate } from 'react-router'
@@ -132,6 +132,10 @@ export function LandingPage() {
                 {openError}
               </p>
             )}
+            <p className="m-0 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+              <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+              {PROJECT_FILE_COMPATIBILITY_WARNING}
+            </p>
             {last && lastType && (
               <Button type="button" variant="ghost" size="lg" onClick={() => navigate(lastType.path)}>
                 Continue “{last.name || 'Untitled'}” · {lastType.label} <ArrowRight />
