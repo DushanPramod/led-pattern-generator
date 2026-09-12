@@ -806,6 +806,25 @@ code {
   gap: 12px;
 }
 
+.timeline-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Estimated run time, on the timeline head and on each sequence. */
+.run-time {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.group header .run-time {
+  margin-right: auto;
+}
+
 .groups {
   display: flex;
   flex-direction: column;

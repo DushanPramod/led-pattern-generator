@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Frame, Grid } from '../types'
+import type { Frame, Grid, Group } from '../types'
 import { DEFAULT_LED_COLOR } from '../lib/colors'
+import {
+  formatDuration,
+  groupDurationMs,
+  groupPassMs,
+  timelineDurationMs,
+} from '../lib/duration'
 import { panelView } from '../lib/simulate'
+import { baseSpeedMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
 
 function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowColors: string[] }) {
@@ -44,10 +51,48 @@ function motionLabel(frame: Frame): string {
   return `${parts.join('+') || 'still'} ${m.steps}`
 }
 
+/**
+ * How long one sequence takes, repeats included — the number that answers
+ * "how long until the panel comes back round to here".
+ */
+function SequenceTime({
+  group,
+  base,
+  byId,
+  basis,
+}: {
+  group: Group
+  base: number
+  byId: Map<string, Frame>
+  basis: string
+}) {
+  const runs = Math.max(1, group.repeat)
+  const pass = groupPassMs(base, byId, group)
+  // A repeated sequence shows its total, so the per-pass length — the part a
+  // user would otherwise have to divide out — goes in the tooltip.
+  const title =
+    runs > 1
+      ? `${runs} passes of ${formatDuration(pass)}, ${basis}`
+      : `One pass of this sequence ${basis}`
+  return (
+    <span className="run-time" title={title}>
+      ~{formatDuration(groupDurationMs(base, byId, group))}
+    </span>
+  )
+}
+
 export function FrameList() {
   const { project, selectedFrameId, dispatch } = useProject()
   const [dragId, setDragId] = useState<string | null>(null)
   const byId = new Map(project.frames.map((f) => [f.id, f]))
+
+  // With a controller fitted these times track the knob, so say so rather than
+  // letting a number that moves on its own look wrong.
+  const base = baseSpeedMs(project.speed)
+  const total = timelineDurationMs(base, byId, project.groups)
+  const basis = project.speed.useController
+    ? `at the knob's current ${base} ms per step`
+    : `at ${base} ms per step`
 
   const drop = (groupId: string, index: number) => {
     if (dragId) dispatch({ type: 'moveFrame', frameId: dragId, toGroupId: groupId, toIndex: index })
@@ -57,7 +102,12 @@ export function FrameList() {
   return (
     <section className="panel timeline">
       <div className="timeline-head">
-        <h3>Timeline</h3>
+        <div className="timeline-title">
+          <h3>Timeline</h3>
+          <span className="run-time" title={`One lap of the timeline ${basis}`}>
+            ~{formatDuration(total)}
+          </span>
+        </div>
         <div className="tools">
           <button type="button" onClick={() => dispatch({ type: 'addFrame' })}>+ Frame</button>
           <button type="button" onClick={() => dispatch({ type: 'addGroup' })}>+ Sequence</button>
@@ -91,6 +141,7 @@ export function FrameList() {
                 />
                 <span>x</span>
               </label>
+              <SequenceTime group={group} base={base} byId={byId} basis={basis} />
               <button
                 type="button"
                 className="icon"
