@@ -38,6 +38,13 @@ The hex is legible as the art itself, which makes patterns easy to tweak by hand
 
 - **Panel size** - any rows x columns; presets match the existing panels. The SRAM figure updates
   live and warns when a panel will not fit an Uno.
+- **Artwork** - draw it on the grid, pick one of the built-in designs, or import an image. The
+  import shows the picture beside a preview of the board it is headed for, drawn in the panel's own
+  row colours. Drag the crop box to pick the part that becomes the design, then it is sampled at
+  the size of the region the frame draws on and cut at a brightness threshold - the panel is one
+  bit per LED, so the result is lit or unlit with nothing in between. The threshold opens on an
+  automatic choice and can be dragged, transparency counts as unlit, and an animated file imports
+  as its first frame.
 - **Tile** - draw a small block and `loadPattern()` repeats it across the panel. Only divisors of
   the source size are offered, since tiling repeats whole copies.
 - **Half-width source** - as in `Matrix20x48`: store the pattern `cols/2` wide and let the panel

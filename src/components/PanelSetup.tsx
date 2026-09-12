@@ -126,7 +126,7 @@ export function PanelSetup() {
           <>
             <div className="flex min-w-[88px] grow basis-[200px] flex-col gap-1">
               <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
-                Panel — one size and palette for the whole project
+                Panel Size
               </span>
               <div className="flex min-h-8 flex-wrap items-center gap-2 rounded-lg border bg-muted px-2.5 py-1 text-sm">
                 <Badge variant="secondary" title="Fixed for every frame in this project">

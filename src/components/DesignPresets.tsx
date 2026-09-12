@@ -1,45 +1,16 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, ChevronRight, ImageIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { Design } from '../lib/presets'
 import type { Frame, Grid } from '../types'
 import { regionOf, sourceCols } from '../lib/grid'
+import { ACCEPTED_IMAGE_TYPES } from '../lib/image'
 import { DESIGNS, designCols, designRows, stampDesign, tilesGrid } from '../lib/presets'
 import { useProject } from '../state/useProject'
+import { DotArt } from './DotArt'
+import { ImageImportDialog } from './ImageImportDialog'
 import { Button } from './ui/button'
 
 type Props = { frame: Frame; grid: Grid }
-
-function Thumb({ design }: { design: Design }) {
-  const rows = designRows(design)
-  const cols = designCols(design)
-  // Small tiles are previewed repeated, which is how they land on the panel.
-  const high = rows * Math.ceil(8 / rows)
-  const wide = cols * Math.ceil(8 / cols)
-  const dots = []
-  for (let r = 0; r < high; r++) {
-    for (let c = 0; c < wide; c++) {
-      const on = design.art[r % rows][c % cols] === '#'
-      dots.push(
-        <circle
-          key={`${r}-${c}`}
-          cx={c + 0.5}
-          cy={r + 0.5}
-          r={on ? 0.4 : 0.18}
-          className={on ? 'on' : ''}
-        />,
-      )
-    }
-  }
-  return (
-    <svg
-      className="h-auto w-full max-w-[52px] [&_circle]:fill-[#1d2532] [&_circle.on]:fill-[#ff3b30]"
-      viewBox={`0 0 ${wide} ${high}`}
-      aria-hidden="true"
-    >
-      {dots}
-    </svg>
-  )
-}
 
 /** Group names carry spaces and ampersands; ids and aria-controls cannot. */
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -50,6 +21,9 @@ export function DesignPresets({ frame, grid }: Props) {
   // The library starts shut so the controls row leads with the drawing tools.
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<string[]>([])
+  // The picked file is what opens the import dialog; clearing it shuts it.
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const imageInput = useRef<HTMLInputElement>(null)
   const region = regionOf(frame, grid)
 
   const toggleGroup = (name: string) =>
@@ -101,19 +75,49 @@ export function DesignPresets({ frame, grid }: Props) {
 
   return (
     <section className="col-span-full flex flex-col gap-3 rounded-xl border bg-card p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="m-0 text-sm font-semibold">Preset designs</h3>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-controls="design-library"
-          onClick={() => setOpen(!open)}
-        >
-          {open ? 'Collapse' : `Expand (${DESIGNS.length})`}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="m-0 text-sm font-semibold">Designs</h3>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => imageInput.current?.click()}
+          >
+            <ImageIcon /> Import image…
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-controls="design-library"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? 'Collapse presets' : `Presets (${DESIGNS.length})`}
+          </Button>
+        </div>
+        <input
+          ref={imageInput}
+          type="file"
+          accept={ACCEPTED_IMAGE_TYPES}
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) setImageFile(file)
+            // Cleared so picking the same file twice still fires a change.
+            e.target.value = ''
+          }}
+        />
       </div>
+
+      <ImageImportDialog
+        file={imageFile}
+        onClose={() => setImageFile(null)}
+        frame={frame}
+        grid={grid}
+        autoName={autoNamed}
+      />
       {open && (
         <div id="design-library" className="flex flex-col gap-3">
           {groups.map((group) => {
@@ -153,7 +157,11 @@ export function DesignPresets({ frame, grid }: Props) {
                         title={reason(design)}
                         onClick={() => apply(design)}
                       >
-                        <Thumb design={design} />
+                        <DotArt
+                          art={design.art}
+                          repeatTo={8}
+                          className="h-auto w-full max-w-[52px]"
+                        />
                         <span className="text-center text-[0.7rem] leading-tight text-[#c8cfdb]">
                           {design.name}
                         </span>
