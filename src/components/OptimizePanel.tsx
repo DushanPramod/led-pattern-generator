@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { compileBatch } from '../lib/arduinoBridge'
+import { ARDUINO_CLI_INSTALL_URL, compileBatch } from '../lib/arduinoBridge'
 import type { BridgeStatus } from '../lib/arduinoBridge'
 import type { BoardLimits } from '../lib/boards'
 import { formatBytes } from '../lib/boards'
@@ -256,8 +256,17 @@ export function OptimizePanel({
 
       {level !== 'off' && !ready && (
         <p className="m-0 text-xs leading-relaxed text-warn">
-          Searching needs <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> — the
-          browser cannot run a compiler. The sketch is still built with the {level} passes; only the
+          Searching needs{' '}
+          <a
+            className="font-medium underline underline-offset-2 hover:text-primary"
+            href={ARDUINO_CLI_INSTALL_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            arduino-cli installed
+          </a>{' '}
+          and <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> running — the browser
+          cannot run a compiler. The sketch is still built with the {level} passes; only the
           measuring is unavailable.
         </p>
       )}

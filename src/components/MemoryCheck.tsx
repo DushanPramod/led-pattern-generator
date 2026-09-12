@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { compileSketch, getBoardLimits, getBoards, getStatus } from '../lib/arduinoBridge'
+import {
+  ARDUINO_CLI_INSTALL_URL,
+  compileSketch,
+  getBoardLimits,
+  getBoards,
+  getStatus,
+} from '../lib/arduinoBridge'
 import type { BridgeStatus, CompileResult } from '../lib/arduinoBridge'
 import { DEFAULT_FQBN, FALLBACK_BOARDS, findBoard, formatBytes } from '../lib/boards'
 import type { BoardLimits } from '../lib/boards'
@@ -242,11 +248,26 @@ export function MemoryCheck() {
       </p>
 
       {status.state === 'absent' && (
-        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
-          Set <code className="rounded bg-muted px-1 py-0.5">ARDUINO_CLI_PATH</code> if arduino-cli
-          lives somewhere unusual. SRAM above is still exact; only Flash is approximate — and on
-          these panels SRAM is what runs out first.
-        </p>
+        <div className="m-0 flex flex-col gap-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="m-0">
+            To measure the real figures instead of estimating them:{' '}
+            <a
+              className="font-medium underline underline-offset-2 hover:text-primary"
+              href={ARDUINO_CLI_INSTALL_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              install arduino-cli
+            </a>
+            , then run <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> from the
+            project folder and reload this page.
+          </p>
+          <p className="m-0">
+            Set <code className="rounded bg-muted px-1 py-0.5">ARDUINO_CLI_PATH</code> if arduino-cli
+            lives somewhere unusual. SRAM above is still exact; only Flash is approximate — and on
+            these panels SRAM is what runs out first.
+          </p>
+        </div>
       )}
     </section>
 

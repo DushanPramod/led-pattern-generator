@@ -11,6 +11,9 @@ import type { BoardLimits } from './boards'
 const BASE = '/api/arduino'
 const MARKER = 'led-pattern-generator/arduino'
 
+/** Where to send someone who has not installed the compiler yet. */
+export const ARDUINO_CLI_INSTALL_URL = 'https://arduino.github.io/arduino-cli/latest/installation/'
+
 export type BridgeStatus =
   | { state: 'checking' }
   | { state: 'ready'; version: string; path: string }
