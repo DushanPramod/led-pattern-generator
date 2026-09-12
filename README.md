@@ -1,6 +1,9 @@
 # LED Pattern Generator
 
-Draw LED matrix patterns in the browser and download a ready-to-flash Arduino sketch.
+Design Budurasmala LED circuits in the browser and download a ready-to-flash Arduino sketch.
+Start from the landing page: name the project, pick a type (**Matrix Budurasmala** today, **Pixel
+Budurasmala** coming), or open a saved project file. The rest of this document describes the
+Matrix Budurasmala editor; see [Project structure](#project-structure) for how types fit together.
 
 The generated code drives the same hardware as the hand-written sketches in `../Matrix8x32`,
 `../Matrix16x32`, `../Matrix16x48` and `../Matrix20x48` — two 74HC595 chains sharing a latch, one
@@ -85,7 +88,7 @@ brightness and refresh behaviour on real hardware match the originals.
 
 ## Verification
 
-`src/lib/simulate.ts` is the behavioural spec - one byte per pixel, straightforward, and verified
+`src/project-types/matrix/lib/simulate.ts` is the behavioural spec - one byte per pixel, straightforward, and verified
 function by function against the hand-written sketches (18/18 identical for `Matrix8x32`, 17/18 for
 `Matrix16x48`, 18/19 for `Matrix20x48`; the exception each time is `sr1w`, whose column order
 depends on how the chain is physically wired). The preview runs that simulator, so what plays on
@@ -169,7 +172,7 @@ repeats anything. It costs seven bytes of descriptor and saves a whole bit-packe
 
 ### The output cannot change
 
-Every candidate is replayed against `src/lib/simulate.ts` — the same simulator the preview runs, and
+Every candidate is replayed against `src/project-types/matrix/lib/simulate.ts` — the same simulator the preview runs, and
 which is never modified to accommodate a pass — and compared frame by frame, both on the real
 project and across the 400-timeline fuzz corpus. A candidate that differs anywhere is rejected
 before it costs a compile.
@@ -222,8 +225,40 @@ quietly.
 
 ## Saving work
 
-Patterns autosave to `localStorage`. **Save project** / **Open project** export and import a
-`.ledproj.json` file.
+Every project autosaves to `localStorage`, and opening the site resumes the last one. **Save
+project** downloads a `.budurasmala.json` file: a shared envelope (`format`, `type`, `meta` with
+name and description, and a `data` block owned by the project type). **Open project** — on the
+landing page or in a workspace — reads that file and routes to the right editor. Older
+`.ledproj.json` files, which are a bare matrix project, still open as Matrix Budurasmala.
+
+## Project structure
+
+The app hosts several kinds of circuit ("project types"); the landing page creates or opens a
+project and routes to that type's workspace.
+
+```
+src/
+  app/            router (one route per project type) and resume-on-load
+  core/           type-agnostic plumbing: ProjectTypeDefinition, registry, file envelope, navigation
+  pages/          landing page
+  components/     shared UI: shadcn ui/, AppHeader, AppFooter, OpenProjectButton, BridgeSetupDialog
+  lib/            shared helpers: utils, diagramExport, arduino/ (bridge, boards)
+  project-types/
+    matrix/       Matrix Budurasmala — components/, lib/ (codegen, optimize, simulate…), state/, types.ts
+    pixel/        Pixel Budurasmala — placeholder workspace
+```
+
+Shared code never imports from `project-types/`, and project types never import each other.
+
+### Adding a project type
+
+1. Create `src/project-types/<id>/` with a default-exported workspace component. It picks up a
+   newly created or opened project with `useIncomingProjectFile('<id>')`, autosaves under its own
+   `localStorage` key, and calls `rememberLastProject` so reloads resume it.
+2. Export a `ProjectTypeDefinition` from its `index.ts` (label, route path, lazy workspace,
+   `createData`, `isValidData`).
+3. Add the id to `ProjectTypeId` in `src/core/projectTypes.ts` and the definition to
+   `PROJECT_TYPES` in `src/core/registry.ts`. The landing dropdown and routes pick it up.
 
 ## Developer
 

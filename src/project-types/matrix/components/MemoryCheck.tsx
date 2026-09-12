@@ -6,19 +6,19 @@ import {
   getBoardLimits,
   getBoards,
   getStatus,
-} from '../lib/arduinoBridge'
-import type { BridgeStatus, CompileResult } from '../lib/arduinoBridge'
-import { DEFAULT_FQBN, FALLBACK_BOARDS, findBoard, formatBytes } from '../lib/boards'
-import type { BoardLimits } from '../lib/boards'
+} from '@/lib/arduino/arduinoBridge'
+import type { BridgeStatus, CompileResult } from '@/lib/arduino/arduinoBridge'
+import { DEFAULT_FQBN, FALLBACK_BOARDS, findBoard, formatBytes } from '@/lib/arduino/boards'
+import type { BoardLimits } from '@/lib/arduino/boards'
 import { FLASH_TOLERANCE, PATTERN_DESCRIPTOR_BYTES, estimateMemory, generate } from '../lib/codegen'
 import { projectOptions } from '../lib/optimize/settings'
-import { BridgeSetupDialog } from './BridgeSetupDialog'
+import { BridgeSetupDialog } from '@/components/BridgeSetupDialog'
 import { OptimizePanel } from './OptimizePanel'
 import { useProject } from '../state/useProject'
-import { Button } from './ui/button'
-import { Progress } from './ui/progress'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { cn } from '../lib/utils'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 type Bar = { label: string; used: number | null; max: number | null; note: string }
 

@@ -4,7 +4,7 @@
  *   node scripts/calibrate-flash.mjs [--fqbn arduino:avr:uno]
  *
  * Generates a spread of sketches, compiles each one for real, then solves for
- * the coefficients in FLASH_MODEL (src/lib/codegen/index.ts) by least squares
+ * the coefficients in FLASH_MODEL (src/project-types/matrix/lib/codegen/index.ts) by least squares
  * and prints the block to paste back. Re-run it whenever the emitted engine
  * changes shape, otherwise the offline estimate slowly drifts out of date.
  */
@@ -106,9 +106,9 @@ function leastSquares(rows, targets) {
 }
 
 const server = await createServer({ server: { middlewareMode: true }, logLevel: 'error' })
-const cg = await server.ssrLoadModule('/src/lib/codegen/index.ts')
-const defaults = await server.ssrLoadModule('/src/state/defaults.ts')
-const loopMod = await server.ssrLoadModule('/src/lib/codegen/loop.ts')
+const cg = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/index.ts')
+const defaults = await server.ssrLoadModule('/src/project-types/matrix/state/defaults.ts')
+const loopMod = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/loop.ts')
 const cli = await findCli()
 console.log(`arduino-cli: ${cli}\nboard:       ${FQBN}\n`)
 
@@ -250,7 +250,7 @@ console.log(`  mean error  ${(absErr.reduce((a, b) => a + b, 0) / absErr.length)
 console.log('\nSRAM: core overhead beyond our own globals')
 console.log(`  residual after SRAM_CORE_OVERHEAD: ${Math.min(...sramResiduals)}..${Math.max(...sramResiduals)} bytes`)
 
-console.log(`\nPaste into src/lib/codegen/index.ts:
+console.log(`\nPaste into src/project-types/matrix/lib/codegen/index.ts:
 
 export const FLASH_MODEL = {
   base: ${Math.round(base)},

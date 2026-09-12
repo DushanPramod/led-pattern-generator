@@ -8,9 +8,9 @@ import {
   normalizeHex,
 } from '../lib/colors'
 import { useProject } from '../state/useProject'
-import { cn } from '../lib/utils'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 /**
  * Per-row LED colours. Rows are the unit because that is how the boards are

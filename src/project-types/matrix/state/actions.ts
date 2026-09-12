@@ -11,6 +11,7 @@ import type {
 
 export type Action =
   | { type: 'setName'; name: string }
+  | { type: 'setDescription'; description: string }
   | { type: 'setGrid'; grid: Grid }
   | { type: 'setHardware'; patch: Partial<Hardware> }
   | { type: 'setSpeed'; patch: Partial<SpeedControl>; coalesce?: boolean }

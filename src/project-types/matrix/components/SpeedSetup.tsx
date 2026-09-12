@@ -12,10 +12,10 @@ import {
   SPEED_MS_MIN,
 } from '../lib/speed'
 import type { SpeedControl } from '../types'
-import { Input } from './ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Slider } from './ui/slider'
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 /** The analog pins an Arduino board offers. A Mega has more, but A0-A7 is common. */
 const ANALOG_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']

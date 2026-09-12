@@ -6,7 +6,7 @@
  * An optimisation may change how the sketch is built; it may never change what
  * the panel shows. So each pass — alone, and combined with the others — plays
  * the shared fuzz corpus through a model of the engine it emits, and the result
- * is diffed frame for frame against src/lib/simulate.ts, which is the fixed
+ * is diffed frame for frame against src/project-types/matrix/lib/simulate.ts, which is the fixed
  * oracle and is never adjusted to accommodate a pass.
  *
  * Section 1 asserts the two functions the generator and the oracle *share*,
@@ -18,10 +18,10 @@ import { createServer } from 'vite'
 import { GRIDS, buildCorpus } from './lib/corpus.mjs'
 
 const server = await createServer({ server: { middlewareMode: true }, logLevel: 'error' })
-const sim = await server.ssrLoadModule('/src/lib/simulate.ts')
-const { sourceCols } = await server.ssrLoadModule('/src/lib/grid.ts')
-const validate = await server.ssrLoadModule('/src/lib/optimize/validate.ts')
-const opts = await server.ssrLoadModule('/src/lib/codegen/options.ts')
+const sim = await server.ssrLoadModule('/src/project-types/matrix/lib/simulate.ts')
+const { sourceCols } = await server.ssrLoadModule('/src/project-types/matrix/lib/grid.ts')
+const validate = await server.ssrLoadModule('/src/project-types/matrix/lib/optimize/validate.ts')
+const opts = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/options.ts')
 
 let failed = 0
 const fail = (msg) => {

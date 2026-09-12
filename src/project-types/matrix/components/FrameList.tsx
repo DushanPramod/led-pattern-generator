@@ -12,9 +12,9 @@ import {
 import { motionSteps, panelView } from '../lib/simulate'
 import { baseSpeedMs, formatFactor, frameStepMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
-import { cn } from '../lib/utils'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowColors: string[] }) {
   const ref = useRef<HTMLCanvasElement>(null)

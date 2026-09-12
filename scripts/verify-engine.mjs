@@ -4,14 +4,14 @@
  *   node scripts/verify-engine.mjs
  *
  * The generated C cannot be run here — there is no AVR emulator — so instead
- * src/lib/optimize/engineModel.ts re-implements the emitted engine in JS,
+ * src/project-types/matrix/lib/optimize/engineModel.ts re-implements the emitted engine in JS,
  * operation for operation, and this diffs every frame it produces against
- * src/lib/simulate.ts. That simulator is the behavioural spec: it is
+ * src/project-types/matrix/lib/simulate.ts. That simulator is the behavioural spec: it is
  * byte-per-pixel, far simpler, and was verified function-by-function against
  * the hand-written Matrix*.ino sketches.
  *
  * A mismatch here means the bit-packing, carry propagation, tiling or mirroring
- * in src/lib/codegen/engine.ts is wrong.
+ * in src/project-types/matrix/lib/codegen/engine.ts is wrong.
  *
  * This checks the default emitter only. For the optimisation passes, see
  * scripts/verify-optimizations.mjs, which runs the same corpus per pass.
@@ -21,9 +21,9 @@ import { createServer } from 'vite'
 import { GRIDS, buildCorpus, diffFrames } from './lib/corpus.mjs'
 
 const server = await createServer({ server: { middlewareMode: true }, logLevel: 'error' })
-const sim = await server.ssrLoadModule('/src/lib/simulate.ts')
-const { sourceCols } = await server.ssrLoadModule('/src/lib/grid.ts')
-const { runEngine } = await server.ssrLoadModule('/src/lib/optimize/engineModel.ts')
+const sim = await server.ssrLoadModule('/src/project-types/matrix/lib/simulate.ts')
+const { sourceCols } = await server.ssrLoadModule('/src/project-types/matrix/lib/grid.ts')
+const { runEngine } = await server.ssrLoadModule('/src/project-types/matrix/lib/optimize/engineModel.ts')
 
 const corpus = buildCorpus({ sourceCols })
 

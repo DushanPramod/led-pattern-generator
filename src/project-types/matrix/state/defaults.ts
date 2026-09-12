@@ -1,3 +1,4 @@
+import type { ProjectMeta } from '@/core/projectTypes'
 import { DEFAULT_LED_COLOR } from '../lib/colors'
 import type { Frame, Grid, Group, Hardware, Project, SpeedControl } from '../types'
 
@@ -46,29 +47,18 @@ export function newGroup(name: string, frameIds: string[] = []): Group {
   return { id: uid('g'), name, repeat: 1, frameIds }
 }
 
-/** A small starter project so the app is never empty on first load. */
-export function starterProject(): Project {
+/** A new project: the default panel with one empty frame ready to draw on. */
+export function blankProject(meta: ProjectMeta): Project {
   const grid = DEFAULT_GRID
-  const frame = newFrame(grid, 'Hourglass')
-  // The 8x8 hourglass from Matrix8x32/D1_13.ino (d7n1).
-  const pixels: Array<[number, number]> = [
-    [0, 0], [0, 7], [1, 1], [1, 6], [2, 2], [2, 5], [3, 3], [3, 4],
-    [4, 3], [4, 4], [5, 2], [5, 5], [6, 1], [6, 6], [7, 0], [7, 7],
-  ]
-  for (const [r, c] of pixels) frame.cells[r * grid.cols + c] = 1
-  frame.tile = { yy: 8, xx: 8 }
-  frame.motion = { kind: 'scroll', updown: 1, leftright: 0, steps: 8 }
-
-  const group = newGroup('Scroll up', [frame.id])
-  group.repeat = 10
-
+  const frame = newFrame(grid, 'Frame 1')
   return {
-    name: 'My Pattern',
+    name: meta.name,
+    description: meta.description,
     grid,
     hardware: DEFAULT_HARDWARE,
     speed: DEFAULT_SPEED,
     rowColors: Array.from({ length: grid.rows }, () => DEFAULT_LED_COLOR),
     frames: [frame],
-    groups: [group],
+    groups: [newGroup('Sequence 1', [frame.id])],
   }
 }

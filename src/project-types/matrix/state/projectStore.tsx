@@ -11,7 +11,7 @@ import {
 } from '../lib/grid'
 import { normalizeRowColors } from '../lib/colors'
 import { normalizeSpeedControl } from '../lib/speed'
-import { newFrame, newGroup, starterProject, uid } from './defaults'
+import { blankProject, newFrame, newGroup, uid } from './defaults'
 import type { Action } from './actions'
 import { ProjectContext, type Store } from './context'
 
@@ -81,6 +81,9 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'setName':
       return commit(state, { ...project, name: action.name })
+
+    case 'setDescription':
+      return commit(state, { ...project, description: action.description })
 
     case 'setGrid': {
       const rows = Math.max(1, Math.min(64, Math.round(action.grid.rows)))
@@ -305,30 +308,40 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function loadInitial(): State {
-  let project = starterProject()
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) project = deserialize(JSON.parse(raw) as SerializedProject)
-  } catch {
-    // Corrupt or absent saved state just falls back to the starter project.
+/**
+ * A project handed in (created on the landing page, or opened from a file) wins;
+ * otherwise the autosave is restored, and failing that a blank project.
+ */
+function loadInitial(initial: Project | undefined): State {
+  let project = initial ?? blankProject({ name: 'Untitled', description: '' })
+  if (!initial) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) project = deserialize(JSON.parse(raw) as SerializedProject)
+    } catch {
+      // Corrupt or absent saved state just falls back to the blank project.
+    }
   }
   return { project, selectedFrameId: project.frames[0]?.id ?? null, past: [], future: [] }
 }
 
-export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadInitial)
+export function ProjectProvider({ initial, children }: { initial?: Project; children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, initial, loadInitial)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const save = () => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(serialize(state.project)))
       } catch {
         // Quota or private-mode failures are not worth interrupting the user.
       }
-    }, 400)
+    }
+    // A project that was just handed in replaces the autosave straight away, so
+    // an immediate reload cannot bring back the one it replaced.
+    if (state.past.length === 0 && state.project === initial) return save()
+    const timer = setTimeout(save, 400)
     return () => clearTimeout(timer)
-  }, [state.project])
+  }, [state.project, state.past.length, initial])
 
   const value = useMemo<Store>(
     () => ({

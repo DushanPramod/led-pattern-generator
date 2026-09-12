@@ -17,10 +17,10 @@ const fqbnArg = process.argv.indexOf('--fqbn')
 const FQBN = fqbnArg > -1 ? process.argv[fqbnArg + 1] : 'arduino:avr:uno'
 
 const server = await createServer({ server: { middlewareMode: true }, logLevel: 'error' })
-const cg = await server.ssrLoadModule('/src/lib/codegen/index.ts')
-const opts = await server.ssrLoadModule('/src/lib/codegen/options.ts')
-const validate = await server.ssrLoadModule('/src/lib/optimize/validate.ts')
-const { DEFAULT_HARDWARE, DEFAULT_SPEED } = await server.ssrLoadModule('/src/state/defaults.ts')
+const cg = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/index.ts')
+const opts = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/options.ts')
+const validate = await server.ssrLoadModule('/src/project-types/matrix/lib/optimize/validate.ts')
+const { DEFAULT_HARDWARE, DEFAULT_SPEED } = await server.ssrLoadModule('/src/project-types/matrix/state/defaults.ts')
 const cli_ = await server.ssrLoadModule('/plugins/arduinoCliCore.ts')
 
 const cli = await cli_.findCli()

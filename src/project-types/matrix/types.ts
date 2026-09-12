@@ -150,6 +150,8 @@ export type OptimizationSettings = {
 
 export type Project = {
   name: string
+  /** Optional note from the landing page. Never reaches the sketch. */
+  description?: string
   grid: Grid
   hardware: Hardware
   speed: SpeedControl

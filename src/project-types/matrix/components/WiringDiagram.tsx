@@ -8,8 +8,8 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_LED_COLOR } from '../lib/colors'
-import type { ExportFormat } from '../lib/diagramExport'
-import { downloadDiagram } from '../lib/diagramExport'
+import type { ExportFormat } from '@/lib/diagramExport'
+import { downloadDiagram } from '@/lib/diagramExport'
 import type { ElectricalPlan, TransistorPick } from '../lib/power'
 import { formatAmps } from '../lib/power'
 import { REGISTER_BITS, describeChain } from '../lib/wiring'
@@ -26,8 +26,8 @@ import {
 import { useProject } from '../state/useProject'
 import type { Project } from '../types'
 import { ShiftRegisterPinout } from './ShiftRegisterPinout'
-import { Button } from './ui/button'
-import { Checkbox } from './ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -35,15 +35,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog'
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu'
-import { Label } from './ui/label'
+} from '@/components/ui/dropdown-menu'
+import { Label } from '@/components/ui/label'
 
 const round = (n: number) => Math.round(n * 10) / 10
 const points = (pts: Pt[]) => pts.map(([x, y]) => `${round(x)},${round(y)}`).join(' ')

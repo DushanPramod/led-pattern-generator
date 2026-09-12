@@ -1,5 +1,5 @@
 import { DEFAULT_LED_COLOR, unlit } from '../lib/colors'
-import { cn } from '../lib/utils'
+import { cn } from '@/lib/utils'
 
 /** The same dark the frame canvas and the preview draw the board on. */
 const CANVAS_BG = '#0b0f16'

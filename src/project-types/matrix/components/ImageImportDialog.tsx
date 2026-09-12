@@ -21,8 +21,8 @@ import { stampDesign } from '../lib/presets'
 import { useProject } from '../state/useProject'
 import { DotArt } from './DotArt'
 import { ImageCrop } from './ImageCrop'
-import { Button } from './ui/button'
-import { Checkbox } from './ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -30,10 +30,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog'
-import { Label } from './ui/label'
-import { Slider } from './ui/slider'
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 type Props = {
   /** The picked file; the dialog is open exactly while this is set. */

@@ -8,14 +8,14 @@ import { DESIGNS, designCols, designRows, stampDesign, tilesGrid } from '../lib/
 import { useProject } from '../state/useProject'
 import { DotArt } from './DotArt'
 import { ImageImportDialog } from './ImageImportDialog'
-import { Button } from './ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog'
+} from '@/components/ui/dialog'
 
 type Props = { frame: Frame; grid: Grid }
 

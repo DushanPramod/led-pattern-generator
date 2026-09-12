@@ -3,9 +3,9 @@ import { useMemo, useState } from 'react'
 import { generate } from '../lib/codegen'
 import { projectOptions } from '../lib/optimize/settings'
 import { useProject } from '../state/useProject'
-import { Button } from './ui/button'
-import { Checkbox } from './ui/checkbox'
-import { Label } from './ui/label'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 
 function download(fileName: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))

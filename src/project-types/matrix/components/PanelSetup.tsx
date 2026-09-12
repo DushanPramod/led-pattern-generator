@@ -8,7 +8,7 @@ import { estimateSram } from '../lib/codegen'
 import { canHalfWidth, framesClippedBy, sourceCols } from '../lib/grid'
 import { colorRuns, describeColor } from '../lib/colors'
 import { baseSpeedMs } from '../lib/speed'
-import { cn } from '../lib/utils'
+import { cn } from '@/lib/utils'
 import type { Grid, ScanOrder } from '../types'
 import {
   AlertDialog,
@@ -19,12 +19,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './ui/alert-dialog'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 const PRESETS = [
   { label: '8 x 32', rows: 8, cols: 32 },
@@ -122,6 +122,18 @@ export function PanelSetup() {
           <Input
             value={project.name}
             onChange={(e) => dispatch({ type: 'setName', name: e.target.value })}
+          />
+        </label>
+
+        <label className="flex min-w-[88px] grow basis-[240px] flex-col gap-1">
+          <span className="text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Description
+          </span>
+          <Input
+            value={project.description ?? ''}
+            maxLength={200}
+            placeholder="Optional"
+            onChange={(e) => dispatch({ type: 'setDescription', description: e.target.value })}
           />
         </label>
 

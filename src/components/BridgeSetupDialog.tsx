@@ -7,8 +7,8 @@ import {
   RefreshCwIcon,
   TriangleAlertIcon,
 } from 'lucide-react'
-import { ARDUINO_CLI_INSTALL_URL, BRIDGE_PORTS } from '../lib/arduinoBridge'
-import type { BridgeStatus } from '../lib/arduinoBridge'
+import { ARDUINO_CLI_INSTALL_URL, BRIDGE_PORTS } from '../lib/arduino/arduinoBridge'
+import type { BridgeStatus } from '../lib/arduino/arduinoBridge'
 import {
   BRIDGE_SCRIPT_NAME,
   OS_LABEL,
@@ -18,8 +18,8 @@ import {
   downloadBridgeScript,
   oneLiner,
   runDownloaded,
-} from '../lib/bridgeSetup'
-import type { HostOs } from '../lib/bridgeSetup'
+} from '../lib/arduino/bridgeSetup'
+import type { HostOs } from '../lib/arduino/bridgeSetup'
 import { Button } from './ui/button'
 import {
   Dialog,

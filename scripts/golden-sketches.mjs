@@ -12,8 +12,8 @@ import { createHash } from 'node:crypto'
 import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true }, logLevel: 'error' })
-const { generate } = await server.ssrLoadModule('/src/lib/codegen/index.ts')
-const { DEFAULT_HARDWARE, DEFAULT_SPEED } = await server.ssrLoadModule('/src/state/defaults.ts')
+const { generate } = await server.ssrLoadModule('/src/project-types/matrix/lib/codegen/index.ts')
+const { DEFAULT_HARDWARE, DEFAULT_SPEED } = await server.ssrLoadModule('/src/project-types/matrix/state/defaults.ts')
 
 const HARDWARE = { ...DEFAULT_HARDWARE }
 const SPEED = { ...DEFAULT_SPEED }

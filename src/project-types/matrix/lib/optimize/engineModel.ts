@@ -3,7 +3,7 @@
  *
  * The generated C cannot run here — there is no AVR in the loop — so this
  * stands in for it: every function matches its counterpart in codegen/engine.ts
- * exactly, and its output is diffed against src/lib/simulate.ts, the behavioural
+ * exactly, and its output is diffed against src/project-types/matrix/lib/simulate.ts, the behavioural
  * spec. A mismatch means the bit-packing, carry propagation, tiling or mirroring
  * in the emitter is wrong.
  *
