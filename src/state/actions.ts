@@ -25,9 +25,12 @@ export type Action =
   | { type: 'applyDesign'; id: string; cells: Uint8Array; tile: Tile; name?: string }
   | { type: 'addGroup' }
   | { type: 'updateGroup'; id: string; patch: Partial<Omit<Group, 'id' | 'frameIds'>> }
+  | { type: 'duplicateGroup'; id: string }
   | { type: 'deleteGroup'; id: string }
   | { type: 'moveFrame'; frameId: string; toGroupId: string; toIndex: number }
   | { type: 'moveGroup'; id: string; delta: number }
+  // Where a dragged sequence is dropped, as a slot in the list it was lifted from.
+  | { type: 'moveGroupTo'; id: string; toIndex: number }
   | { type: 'setOptimization'; optimization: OptimizationSettings | undefined }
   | { type: 'loadProject'; project: Project }
   | { type: 'undo' }

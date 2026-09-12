@@ -102,11 +102,22 @@ one shift before rendering, while `runBands()` on hardware renders first and shi
 
 The **Memory** tab picks a board and reports how much Flash and SRAM the generated sketch needs.
 
-Running `npm run dev` exposes `POST /api/arduino/compile`, a Vite middleware
-(`plugins/arduinoCli.ts`) that shells out to `arduino-cli` and reports the real figures. It finds
-the CLI on `PATH`, in the Arduino IDE 2.x bundle, or at `ARDUINO_CLI_PATH`, and lists every board
-that CLI has installed. The route only exists under `serve` — the production build is untouched, so
-the deployed site falls back to the offline estimate and says so.
+A browser cannot run a compiler, so the real figures come from a small HTTP server on the user's own
+machine that shells out to `arduino-cli`. There are two of them, speaking the same API under
+`/api/arduino`, and `src/lib/arduinoBridge.ts` does not care which one answers:
+
+| | Where it runs | Who it is for |
+| --- | --- | --- |
+| `plugins/arduinoCli.ts` | Vite middleware, same origin, `serve` only | Working on this repo |
+| `public/bridge/led-bridge.ps1` | `127.0.0.1:8787`, Windows PowerShell 5.1 | Anyone on the deployed site |
+| `public/bridge/led-bridge.sh` | `127.0.0.1:8787`, bash + Python 3 | ditto, macOS and Linux |
+
+All three find the CLI the same way — `ARDUINO_CLI_PATH`, then `PATH`, then the Arduino IDE 2.x
+bundle — and report every board that CLI has installed. The two scripts additionally install
+`arduino-cli` and the `arduino:avr` core if they are missing, into the user's own home directory,
+with no admin rights and no Node.js; **Set up compiling** in the Memory tab hands out a copy with
+the site's origin already stamped into it. See [Compiling from the deployed
+site](#compiling-from-the-deployed-site).
 
 |         | Offline estimate | With the compiler |
 | --- | --- | --- |
@@ -165,6 +176,41 @@ npm run measure-passes    # what each pass saves, per project
 imported by the generator *from* the simulator, so a bug in either changes both sides of the diff
 identically and passes — which it demonstrably does: breaking `mirrorApplies` on purpose still
 leaves all 6517 frames reported identical, and only the direct assertions catch it.
+
+## Compiling from the deployed site
+
+The deployed app is a static site, so measuring and optimising need a compiler the visitor runs
+themselves. **Set up compiling**, in the Memory tab, is the whole of that story: it hands out a
+single self-contained script for their platform with this site's origin already stamped into it,
+and the page finds it on `127.0.0.1` afterwards without being told where to look.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((irm 'https://YOUR-SITE/bridge/led-bridge.ps1'))) -Origin 'https://YOUR-SITE'"
+```
+
+```bash
+curl -fsSL https://YOUR-SITE/bridge/led-bridge.sh | bash -s -- --origin https://YOUR-SITE
+```
+
+The first run does what a person would otherwise do by hand: looks for `arduino-cli`, downloads the
+official build into `%LOCALAPPDATA%` or `~/.local/share` if there is none, offers to put it on
+`PATH`, installs the `arduino:avr` core, and starts serving. Nothing needs admin rights, nothing is
+installed system-wide, and deleting one folder undoes all of it. Neither script needs Node.js —
+Windows PowerShell 5.1 ships with Windows, and the POSIX script's server is the Python 3 that
+macOS and every mainstream Linux already have.
+
+**Why it is safe to run a server for a web page to talk to.** It binds to `127.0.0.1` only, so it
+is never reachable from the network. CORS is enforced by the browser, but the browser is not
+trusted to be the only caller: the `Origin` header is checked on the server too, and a request from
+any site but the one stamped into the script is refused with a 403 before a compiler is invoked.
+The client also sends a header it does not read, which is enough to make every request non-simple
+and force a preflight, so a hostile page cannot even reach the routes. Chrome's Private Network
+Access preflight is answered as well, since a page on the public internet reaching `127.0.0.1` needs
+that.
+
+**Browsers.** Chrome, Edge and Firefox treat `127.0.0.1` as trustworthy and allow this from an
+HTTPS page. Safari does not, and the dialog says so rather than letting the connection fail
+quietly.
 
 ## Saving work
 

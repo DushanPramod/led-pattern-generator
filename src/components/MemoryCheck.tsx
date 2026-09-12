@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { PlugZapIcon } from 'lucide-react'
 import {
-  ARDUINO_CLI_INSTALL_URL,
   compileSketch,
+  forgetBridge,
   getBoardLimits,
   getBoards,
   getStatus,
@@ -11,6 +12,7 @@ import { DEFAULT_FQBN, FALLBACK_BOARDS, findBoard, formatBytes } from '../lib/bo
 import type { BoardLimits } from '../lib/boards'
 import { FLASH_TOLERANCE, PATTERN_DESCRIPTOR_BYTES, estimateMemory, generate } from '../lib/codegen'
 import { projectOptions } from '../lib/optimize/settings'
+import { BridgeSetupDialog } from './BridgeSetupDialog'
 import { OptimizePanel } from './OptimizePanel'
 import { useProject } from '../state/useProject'
 import { Button } from './ui/button'
@@ -59,6 +61,7 @@ export function MemoryCheck() {
   const [boards, setBoards] = useState<BoardLimits[]>(FALLBACK_BOARDS)
   const [fqbn, setFqbn] = useState(DEFAULT_FQBN)
   const [busy, setBusy] = useState(false)
+  const [setupOpen, setSetupOpen] = useState(false)
   // Tagged with the sketch it measured, so staleness is derived rather than
   // cleared from an effect.
   const [report, setReport] = useState<{
@@ -79,31 +82,41 @@ export function MemoryCheck() {
   const result = current?.data ?? null
   const failure = current?.failure ?? null
 
-  useEffect(() => {
-    let live = true
-    void (async () => {
-      const next = await getStatus()
-      if (!live) return
-      setStatus(next)
-      if (next.state !== 'ready') return
-      try {
-        const list = await getBoards()
-        if (!live || list.length === 0) return
-        // Keep the fallback limits for boards we already know, fill the rest lazily.
-        setBoards(
-          list.map((b) => {
-            const known = findBoard(FALLBACK_BOARDS, b.fqbn)
-            return { fqbn: b.fqbn, name: b.name, flashMax: known?.flashMax ?? 0, sramMax: known?.sramMax ?? 0 }
-          }),
-        )
-      } catch {
-        // Board listing is a nicety; the fallback table still works.
-      }
-    })()
-    return () => {
-      live = false
+  /**
+   * Looks for a compiler and, if one answers, replaces the fallback board list
+   * with what it actually has installed.
+   *
+   * `rediscover` is for the Connect button in the setup dialog: the helper was
+   * very likely started after the page loaded, so whatever was concluded on
+   * mount has to be thrown away rather than trusted.
+   */
+  const load = useCallback(async (rediscover = false) => {
+    if (rediscover) forgetBridge()
+    const next = await getStatus()
+    setStatus(next)
+    if (next.state !== 'ready') return
+    try {
+      const list = await getBoards()
+      if (list.length === 0) return
+      // Keep the fallback limits for boards we already know, fill the rest lazily.
+      setBoards(
+        list.map((b) => {
+          const known = findBoard(FALLBACK_BOARDS, b.fqbn)
+          return { fqbn: b.fqbn, name: b.name, flashMax: known?.flashMax ?? 0, sramMax: known?.sramMax ?? 0 }
+        }),
+      )
+    } catch {
+      // Board listing is a nicety; the fallback table still works.
     }
   }, [])
+
+  // Probing for a compiler is exactly what an effect is for: it asks the world
+  // outside React what is there, and the answer arrives later.
+  useEffect(() => {
+    void (async () => {
+      await load()
+    })()
+  }, [load])
 
   // Fill in limits for a board the fallback table doesn't cover.
   useEffect(() => {
@@ -180,10 +193,20 @@ export function MemoryCheck() {
           type="button"
           onClick={() => void check()}
           disabled={busy || status.state !== 'ready'}
-          title={status.state === 'ready' ? 'Compile with arduino-cli' : 'Needs the local dev server'}
+          title={
+            status.state === 'ready'
+              ? 'Compile with arduino-cli'
+              : 'Needs the compile helper running on your machine'
+          }
         >
           {busy ? 'Compiling…' : 'Check memory'}
         </Button>
+        {status.state === 'absent' && (
+          <Button type="button" variant="outline" onClick={() => setSetupOpen(true)}>
+            <PlugZapIcon />
+            Set up compiling
+          </Button>
+        )}
       </div>
 
       <UsageBar
@@ -237,7 +260,7 @@ export function MemoryCheck() {
           status.state === 'ready' ? 'text-muted-foreground' : 'text-warn',
         )}
       >
-        {status.state === 'checking' && 'Looking for arduino-cli…'}
+        {status.state === 'checking' && 'Looking for a compiler…'}
         {status.state === 'ready' && (
           <>
             arduino-cli {status.version} found — {boards.length} installed board
@@ -248,30 +271,34 @@ export function MemoryCheck() {
       </p>
 
       {status.state === 'absent' && (
-        <div className="m-0 flex flex-col gap-1 text-xs leading-relaxed text-muted-foreground">
-          <p className="m-0">
-            To measure the real figures instead of estimating them:{' '}
-            <a
-              className="font-medium underline underline-offset-2 hover:text-primary"
-              href={ARDUINO_CLI_INSTALL_URL}
-              target="_blank"
-              rel="noreferrer"
-            >
-              install arduino-cli
-            </a>
-            , then run <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> from the
-            project folder and reload this page.
-          </p>
-          <p className="m-0">
-            Set <code className="rounded bg-muted px-1 py-0.5">ARDUINO_CLI_PATH</code> if arduino-cli
-            lives somewhere unusual. SRAM above is still exact; only Flash is approximate — and on
-            these panels SRAM is what runs out first.
-          </p>
-        </div>
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+          Compiling happens on your own machine, so it takes a one-time setup — the{' '}
+          <button
+            type="button"
+            className="font-medium underline underline-offset-2 hover:text-primary"
+            onClick={() => setSetupOpen(true)}
+          >
+            helper walks you through it
+          </button>
+          , arduino-cli included. Until then SRAM above is still exact and only Flash is
+          approximate — and on these panels SRAM is what runs out first.
+        </p>
       )}
     </section>
 
-    <OptimizePanel fqbn={fqbn} board={board} status={status} />
+    <OptimizePanel
+      fqbn={fqbn}
+      board={board}
+      status={status}
+      onSetUpCompiling={() => setSetupOpen(true)}
+    />
+
+    <BridgeSetupDialog
+      open={setupOpen}
+      onOpenChange={setSetupOpen}
+      status={status}
+      onRecheck={() => load(true)}
+    />
     </>
   )
 }

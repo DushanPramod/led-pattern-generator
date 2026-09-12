@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { ARDUINO_CLI_INSTALL_URL, compileBatch } from '../lib/arduinoBridge'
+import { compileBatch } from '../lib/arduinoBridge'
 import type { BridgeStatus } from '../lib/arduinoBridge'
 import type { BoardLimits } from '../lib/boards'
 import { formatBytes } from '../lib/boards'
@@ -37,10 +37,12 @@ export function OptimizePanel({
   fqbn,
   board,
   status,
+  onSetUpCompiling,
 }: {
   fqbn: string
   board: BoardLimits | undefined
   status: BridgeStatus
+  onSetUpCompiling: () => void
 }) {
   const { project, dispatch } = useProject()
   const [running, setRunning] = useState(false)
@@ -256,18 +258,15 @@ export function OptimizePanel({
 
       {level !== 'off' && !ready && (
         <p className="m-0 text-xs leading-relaxed text-warn">
-          Searching needs{' '}
-          <a
+          Searching compiles every candidate, and a browser cannot — it needs the{' '}
+          <button
+            type="button"
             className="font-medium underline underline-offset-2 hover:text-primary"
-            href={ARDUINO_CLI_INSTALL_URL}
-            target="_blank"
-            rel="noreferrer"
+            onClick={onSetUpCompiling}
           >
-            arduino-cli installed
-          </a>{' '}
-          and <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> running — the browser
-          cannot run a compiler. The sketch is still built with the {level} passes; only the
-          measuring is unavailable.
+            compile helper running on your machine
+          </button>
+          . The sketch is still built with the {level} passes; only the measuring is unavailable.
         </p>
       )}
     </section>

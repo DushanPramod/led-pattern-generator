@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, type ReactNode } from 'react'
-import type { Frame, Grid, Project, SerializedProject } from '../types'
+import type { Frame, Grid, Group, Project, SerializedProject } from '../types'
 import { canHalfWidth, deserialize, resizeCells, serialize, snapToDivisor, sourceCols } from '../lib/grid'
 import { normalizeRowColors } from '../lib/colors'
 import { normalizeSpeedControl } from '../lib/speed'
@@ -184,6 +184,39 @@ function reducer(state: State, action: Action): State {
         groups: project.groups.map((g) => (g.id === action.id ? { ...g, ...action.patch } : g)),
       })
 
+    case 'duplicateGroup': {
+      const at = project.groups.findIndex((g) => g.id === action.id)
+      if (at === -1) return state
+      const source = project.groups[at]
+      // The copy gets frames of its own rather than reusing the ids: a frame
+      // belongs to one sequence, so sharing them would mean editing, moving or
+      // deleting a frame in the original reached into the copy as well. The
+      // emitter shares one PROGMEM table between identical patterns, so the
+      // copied artwork costs nothing until it is drawn differently.
+      const copies = source.frameIds.flatMap((fid) => {
+        const frame = project.frames.find((f) => f.id === fid)
+        return frame ? [{ ...frame, id: uid('f'), cells: frame.cells.slice() }] : []
+      })
+      const group: Group = {
+        ...source,
+        id: uid('g'),
+        name: `${source.name} copy`,
+        frameIds: copies.map((f) => f.id),
+      }
+      const groups = [...project.groups]
+      groups.splice(at + 1, 0, group)
+      // Keep the frame list roughly in timeline order by landing the copies
+      // just after the last frame the source sequence plays.
+      const last = source.frameIds.reduce(
+        (max, fid) => Math.max(max, project.frames.findIndex((f) => f.id === fid)),
+        -1,
+      )
+      const frames = [...project.frames]
+      frames.splice(last + 1, 0, ...copies)
+      const next = commit(state, { ...project, frames, groups })
+      return { ...next, selectedFrameId: copies[0]?.id ?? state.selectedFrameId }
+    }
+
     case 'deleteGroup':
       return commit(state, { ...project, groups: project.groups.filter((g) => g.id !== action.id) })
 
@@ -205,6 +238,19 @@ function reducer(state: State, action: Action): State {
       if (from === -1 || to < 0 || to >= project.groups.length) return state
       const groups = [...project.groups]
       const [moved] = groups.splice(from, 1)
+      groups.splice(to, 0, moved)
+      return commit(state, { ...project, groups })
+    }
+
+    case 'moveGroupTo': {
+      const from = project.groups.findIndex((g) => g.id === action.id)
+      if (from === -1) return state
+      const groups = [...project.groups]
+      const [moved] = groups.splice(from, 1)
+      // toIndex is a slot in the list as the user saw it, with the dragged
+      // sequence still in place, so dropping below its old home shifts down one.
+      const to = Math.max(0, Math.min(groups.length, action.toIndex > from ? action.toIndex - 1 : action.toIndex))
+      if (to === from) return state
       groups.splice(to, 0, moved)
       return commit(state, { ...project, groups })
     }
