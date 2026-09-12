@@ -913,8 +913,18 @@ code {
 }
 
 .frame-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
   font-size: 0.7rem;
   color: var(--muted);
+}
+
+/* The card is narrow, so the motion label yields before the time does. */
+.frame-meta .run-time {
+  font-size: inherit;
+  flex: 0 0 auto;
 }
 
 .frame-actions {

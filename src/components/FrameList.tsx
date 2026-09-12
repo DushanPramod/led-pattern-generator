@@ -3,12 +3,13 @@ import type { Frame, Grid, Group } from '../types'
 import { DEFAULT_LED_COLOR } from '../lib/colors'
 import {
   formatDuration,
+  frameDurationMs,
   groupDurationMs,
   groupPassMs,
   timelineDurationMs,
 } from '../lib/duration'
-import { panelView } from '../lib/simulate'
-import { baseSpeedMs } from '../lib/speed'
+import { motionSteps, panelView } from '../lib/simulate'
+import { baseSpeedMs, formatFactor, frameStepMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
 
 function FrameThumb({ frame, grid, rowColors }: { frame: Frame; grid: Grid; rowColors: string[] }) {
@@ -196,7 +197,17 @@ export function FrameList() {
                         dispatch({ type: 'updateFrame', id: fid, patch: { name: e.target.value } })
                       }
                     />
-                    <span className="frame-meta">{motionLabel(frame)}</span>
+                    <span className="frame-meta">
+                      {motionLabel(frame)}
+                      <span
+                        className="run-time"
+                        title={`${motionSteps(frame.motion)} steps of ${frameStepMs(base, frame)} ms${
+                          frame.speedMs === null ? ` (${formatFactor(frame.speedFactor)} of base)` : ' (pinned)'
+                        }`}
+                      >
+                        ~{formatDuration(frameDurationMs(base, frame))}
+                      </span>
+                    </span>
                     <div className="frame-actions">
                       <button
                         type="button"
