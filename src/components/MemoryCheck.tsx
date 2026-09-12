@@ -3,7 +3,9 @@ import { compileSketch, getBoardLimits, getBoards, getStatus } from '../lib/ardu
 import type { BridgeStatus, CompileResult } from '../lib/arduinoBridge'
 import { DEFAULT_FQBN, FALLBACK_BOARDS, findBoard, formatBytes } from '../lib/boards'
 import type { BoardLimits } from '../lib/boards'
-import { estimateMemory, generate } from '../lib/codegen'
+import { FLASH_TOLERANCE, PATTERN_DESCRIPTOR_BYTES, estimateMemory, generate } from '../lib/codegen'
+import { projectOptions } from '../lib/optimize/settings'
+import { OptimizePanel } from './OptimizePanel'
 import { useProject } from '../state/useProject'
 
 type Bar = { label: string; used: number | null; max: number | null; note: string }
@@ -50,8 +52,10 @@ export function MemoryCheck() {
     failure: string | null
   } | null>(null)
 
-  const sketch = useMemo(() => generate(project), [project])
-  const estimate = useMemo(() => estimateMemory(project), [project])
+  // The sketch measured here is the one the project is actually set to emit.
+  const options = useMemo(() => projectOptions(project), [project])
+  const sketch = useMemo(() => generate(project, options), [project, options])
+  const estimate = useMemo(() => estimateMemory(project, options), [project, options])
   const board = findBoard(boards, fqbn)
 
   // An edit or a board change invalidates whatever was measured before.
@@ -133,8 +137,10 @@ export function MemoryCheck() {
   const flashMax = result?.flashMax ?? (board?.flashMax || null)
   const sramMax = result?.sramMax ?? (board?.sramMax || null)
   const estimatedSram = estimate.sramGlobals
+  const optimisedPatterns = options.passes.has('progmemPatternRead')
 
   return (
+    <>
     <section className="panel memory">
       <div className="row">
         <label className="field grow">
@@ -167,8 +173,8 @@ export function MemoryCheck() {
             ? 'Measured by arduino-cli.'
             : `Estimated ${formatBytes(estimate.flashLow)}–${formatBytes(estimate.flashHigh)}: ` +
               `${estimate.designs} pattern${estimate.designs === 1 ? '' : 's'} stored as ` +
-              `${estimate.patternBytes} bytes in PROGMEM. Within 4% on the calibration set, but ` +
-              `compile for the real figure.`
+              `${estimate.patternBytes} bytes in PROGMEM. Within ${Math.round(FLASH_TOLERANCE * 100)}% on the ` +
+              `calibration set, but compile for the real figure.`
         }
       />
 
@@ -179,8 +185,12 @@ export function MemoryCheck() {
         note={
           measured
             ? 'Measured by arduino-cli. Local variables use what is left.'
-            : `Exact, not estimated: both buffers are bit-packed at one bit per LED, plus 6 bytes ` +
-              `of counters and 9 the core uses — matched on all 15 calibration compiles.`
+            : optimisedPatterns
+              ? `Exact, not estimated: the panel buffer is bit-packed at one bit per LED and the ` +
+                `pattern is read from PROGMEM through a ${PATTERN_DESCRIPTOR_BYTES}-byte descriptor, ` +
+                `plus 6 bytes of counters and 9 the core uses.`
+              : `Exact, not estimated: both buffers are bit-packed at one bit per LED, plus 6 bytes ` +
+                `of counters and 9 the core uses.`
         }
       />
 
@@ -213,5 +223,8 @@ export function MemoryCheck() {
         </p>
       )}
     </section>
+
+    <OptimizePanel fqbn={fqbn} board={board} status={status} />
+    </>
   )
 }

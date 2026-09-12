@@ -1,5 +1,5 @@
 import { DEFAULT_LED_COLOR } from '../lib/colors'
-import type { Frame, Grid, Group, Hardware, Project } from '../types'
+import type { Frame, Grid, Group, Hardware, Project, SpeedControl } from '../types'
 
 export const DEFAULT_GRID: Grid = { rows: 8, cols: 32 }
 
@@ -9,12 +9,18 @@ export const DEFAULT_HARDWARE: Hardware = {
   clock1: 4,
   data2: 5,
   clock2: 6,
-  useSpeedPot: true,
-  speedPin: 'A0',
-  speedMin: 10,
-  speedMax: 500,
-  defaultSpeed: 50,
   scanOrder: 'ascending',
+}
+
+/** The hand-written sketches all read a pot on A0 mapped to 10-500 ms. */
+export const DEFAULT_SPEED: SpeedControl = {
+  useController: true,
+  pin: 'A0',
+  minMs: 10,
+  maxMs: 500,
+  // Mid-travel, so the preview starts somewhere near the middle of the range.
+  position: 512,
+  stepMs: 50,
 }
 
 let counter = 0
@@ -29,7 +35,8 @@ export function newFrame(grid: Grid, name: string): Frame {
     mirror: false,
     preload: false,
     motion: { kind: 'scroll', updown: 1, leftright: 0, steps: grid.rows },
-    speed: null,
+    speedFactor: 1,
+    speedMs: null,
   }
 }
 
@@ -57,6 +64,7 @@ export function starterProject(): Project {
     name: 'My Pattern',
     grid,
     hardware: DEFAULT_HARDWARE,
+    speed: DEFAULT_SPEED,
     rowColors: Array.from({ length: grid.rows }, () => DEFAULT_LED_COLOR),
     frames: [frame],
     groups: [group],

@@ -1,5 +1,14 @@
 import { normalizeRowColors } from './colors'
-import type { Frame, Grid, Project, SerializedProject } from '../types'
+import {
+  ADC_RANGE,
+  clampFactor,
+  clampMs,
+  clampPosition,
+  normalizeSpeedControl,
+  speedRange,
+} from './speed'
+import { DEFAULT_SPEED } from '../state/defaults'
+import type { Frame, Grid, Hardware, Project, SerializedProject, SpeedControl } from '../types'
 
 /**
  * Width of the source array. In half-width mode only the left half is authored
@@ -112,22 +121,99 @@ const fromBase64 = (text: string) => {
 export function serialize(project: Project): SerializedProject {
   return {
     ...project,
-    version: 1,
+    version: 2,
     frames: project.frames.map((f) => ({ ...f, cells: toBase64(f.cells) })),
   }
 }
 
-export function deserialize(data: SerializedProject): Project {
+/**
+ * Version 1, where speed lived on the hardware block as a millisecond value per
+ * frame. Kept only so saved and exported projects from then still open.
+ */
+type LegacyProject = Omit<SerializedProject, 'version' | 'speed' | 'hardware' | 'frames'> & {
+  version: 1
+  speed?: undefined
+  hardware: SerializedProject['hardware'] & {
+    useSpeedPot?: boolean
+    speedPin?: string
+    speedMin?: number
+    speedMax?: number
+    defaultSpeed?: number
+  }
+  frames: Array<
+    Omit<SerializedProject['frames'][number], 'speedFactor' | 'speedMs'> & {
+      speed?: number | null
+    }
+  >
+}
+
+/** The knob position that maps to a given delay — the inverse of `potMs()`. */
+function positionFor(ms: number, minMs: number, maxMs: number): number {
+  if (maxMs === minMs) return 0
+  return clampPosition(Math.round(((ms - minMs) * ADC_RANGE) / (maxMs - minMs)))
+}
+
+/**
+ * Moves a v1 project onto the speed block.
+ *
+ * The pot is positioned where it would read the old global delay, so a
+ * reopened project keeps the timing it was saved with. Per-frame delays need no
+ * conversion: they were absolute then and are absolute now.
+ */
+function migrateSpeed(data: LegacyProject): SpeedControl {
+  const hw = data.hardware
+  const { minMs, maxMs } = speedRange(hw.speedMin ?? 10, hw.speedMax ?? 500)
+  const baseMs = clampMs(hw.defaultSpeed ?? 50)
+  const useController = hw.useSpeedPot ?? true
+  return {
+    useController,
+    pin: hw.speedPin ?? 'A0',
+    minMs,
+    maxMs,
+    position: useController ? positionFor(baseMs, minMs, maxMs) : 512,
+    stepMs: baseMs,
+  }
+}
+
+export function deserialize(data: SerializedProject | LegacyProject): Project {
   const size = data.grid.rows * data.grid.cols
+  const isLegacy = data.version === 1
+  const hw = data.hardware
+  // Picked field by field so a v1 file's speed keys do not ride along on the
+  // hardware block, where nothing would ever read them again.
+  const hardware: Hardware = {
+    data1: hw.data1,
+    str1: hw.str1,
+    clock1: hw.clock1,
+    data2: hw.data2,
+    clock2: hw.clock2,
+    scanOrder: hw.scanOrder,
+  }
+
   return {
     ...data,
+    hardware,
+    // A v2 file always carries one; the fallback covers a hand-edited file.
+    speed: normalizeSpeedControl(
+      isLegacy ? migrateSpeed(data) : (data.speed ?? DEFAULT_SPEED),
+    ),
     // Projects saved before per-row colours existed come back as plain red.
     rowColors: normalizeRowColors(data.rowColors, data.grid.rows),
     frames: data.frames.map((f) => {
       const cells = new Uint8Array(size)
       const decoded = fromBase64(f.cells)
       cells.set(decoded.subarray(0, size))
-      return { ...f, cells }
+      // A v1 frame's `speed` was an absolute delay that ignored the dial, which
+      // is exactly what `speedMs` is now — so it carries across unchanged
+      // rather than being approximated as a factor.
+      const stored = f as { speedFactor?: number; speedMs?: number | null; speed?: number | null }
+      const speedMs = (isLegacy ? stored.speed : stored.speedMs) ?? null
+      return {
+        ...f,
+        cells,
+        speedFactor: clampFactor(stored.speedFactor ?? 1),
+        speedMs: speedMs === null ? null : clampMs(speedMs),
+      }
     }),
   }
 }

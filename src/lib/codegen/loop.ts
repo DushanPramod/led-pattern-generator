@@ -1,6 +1,7 @@
 import type { Frame, Grid, Group } from '../../types'
 import { regionOf } from '../grid'
 import { mirrorApplies, needsPreload } from '../simulate'
+import { clampMs, encodeFactor, formatFactor, SCALE_UNIT } from '../speed'
 import type { EngineNeeds } from './engine'
 
 /**
@@ -28,10 +29,14 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
   let scroll = false
   let hold = false
   let tiled = false
+  let scaledSpeed = false
+  let fixedSpeed = false
 
   for (const frame of played) {
     if (frame.motion.kind === 'scroll') scroll = true
     if (frame.motion.kind === 'static') hold = true
+    if (frame.speedMs !== null) fixedSpeed = true
+    else if (encodeFactor(frame.speedFactor) !== SCALE_UNIT) scaledSpeed = true
     const region = regionOf(frame, grid)
     if (region.rows < grid.rows || region.cols < (grid.halfWidth ? grid.cols / 2 : grid.cols)) {
       tiled = true
@@ -41,7 +46,16 @@ export function engineNeeds(frames: Frame[], grid: Grid, groups: Group[] = []): 
     else mirrorPattern = true
   }
 
-  return { bandCounts: usedBandCounts(played), mirrorFeed, mirrorPattern, scroll, hold, tiled }
+  return {
+    bandCounts: usedBandCounts(played),
+    mirrorFeed,
+    mirrorPattern,
+    scroll,
+    hold,
+    tiled,
+    scaledSpeed,
+    fixedSpeed,
+  }
 }
 
 const FLAG_MIRROR = 1
@@ -58,6 +72,9 @@ export type StepRow = {
   bandCount: number
   bandMask: number
   steps: number
+  /** The frame's speed preset in sixteenths of the base delay: 16 is 1x. */
+  speedScale: number
+  /** A fixed delay that overrides the preset; 0 means there is none. */
   speedMs: number
   comment: string
 }
@@ -79,6 +96,7 @@ export function makeStep(frame: Frame, grid: Grid, symbol: string): StepRow {
   const region = regionOf(frame, grid)
   const mirrored = mirrorApplies(frame, grid)
   const motion = frame.motion
+  const speedScale = encodeFactor(frame.speedFactor)
   return {
     symbol,
     tileRows: region.rows,
@@ -98,18 +116,39 @@ export function makeStep(frame: Frame, grid: Grid, symbol: string): StepRow {
         ? motion.directions.reduce((mask, right, i) => mask | (right ? 1 << i : 0), 0)
         : 0,
     steps: Math.max(1, motion.steps),
-    // 0 means "follow the global speed", which the dial keeps updating.
-    speedMs: frame.speed ?? 0,
-    comment: `${frame.name} — ${directionWord(frame)}${mirrored ? ', mirrored' : ''}`,
+    // A multiple of the global speed, not a millisecond count: the dial keeps
+    // updating that, and every step moves with it.
+    speedScale,
+    // Unless the frame is pinned, in which case this wins and the dial does not
+    // reach it. Zero is the sentinel for "not pinned" — a step delay of zero
+    // has no meaning anyway, since holdFrame() would return immediately.
+    speedMs: frame.speedMs === null ? 0 : clampMs(frame.speedMs),
+    comment:
+      `${frame.name} — ${directionWord(frame)}${mirrored ? ', mirrored' : ''}` +
+      (frame.speedMs !== null
+        ? ` at a fixed ${clampMs(frame.speedMs)} ms`
+        : speedScale === SCALE_UNIT
+          ? ''
+          : ` at ${formatFactor(speedScale / SCALE_UNIT)}`),
   }
 }
 
-/** The row exactly as it appears in the generated STEPS table. */
-export function formatStep(step: StepRow): string {
+/**
+ * The row exactly as it appears in the generated STEPS table.
+ *
+ * The speed columns are the ones the timeline actually uses: a project where
+ * every frame follows the base carries no speed column at all, and only a
+ * project that pins a frame pays for the wider millisecond field.
+ */
+export function formatStep(step: StepRow, needs?: EngineNeeds): string {
+  const speed = [
+    ...(needs === undefined || needs.fixedSpeed ? [step.speedMs] : []),
+    ...(needs === undefined || needs.scaledSpeed ? [step.speedScale] : []),
+  ]
   return (
     `{ ${step.symbol}, ${step.tileRows}, ${step.tileCols}, ${step.flags}, ${step.motion}, ` +
     `${step.vertical}, ${step.horizontal}, ${step.bandCount}, ${step.bandMask}, ` +
-    `${step.steps}, ${step.speedMs} }`
+    `${[step.steps, ...speed].join(', ')} }`
   )
 }
 
@@ -146,8 +185,9 @@ export function buildSteps(
 export function emitTables(
   steps: StepRow[],
   sequences: Array<{ first: number; count: number; repeat: number; name: string }>,
+  needs: EngineNeeds,
 ): string {
-  const stepRows = steps.map((s) => `  ${formatStep(s)},   // ${s.comment}`)
+  const stepRows = steps.map((s) => `  ${formatStep(s, needs)},   // ${s.comment}`)
   const seqRows = sequences.map(
     (s) => `  { ${s.first}, ${s.count}, ${s.repeat} },   // ${s.name}`,
   )
@@ -163,7 +203,17 @@ ${seqRows.join('\n')}
 #define SEQUENCE_COUNT ${sequences.length}`
 }
 
-export function emitTypes(): string {
+export function emitTypes(needs: EngineNeeds): string {
+  // Matches formatStep(): a field only exists if some step sets it.
+  const speedFields = [
+    ...(needs.fixedSpeed
+      ? [`  uint16_t speedMs;      // a delay of its own; 0 follows the base speed`]
+      : []),
+    ...(needs.scaledSpeed
+      ? [`  uint8_t speedScale;    // this step's share of the base delay, in sixteenths`]
+      : []),
+  ]
+
   return `enum Motion : uint8_t { MOTION_SCROLL, MOTION_HOLD, MOTION_BANDS };
 
 #define FLAG_MIRROR ${FLAG_MIRROR}
@@ -180,8 +230,7 @@ struct Step {
   int8_t horizontal;
   uint8_t bandCount;
   uint8_t bandDirections;
-  uint16_t steps;
-  uint16_t speedMs;      // 0 follows the speed dial
+  uint16_t steps;${speedFields.map((line) => `\n${line}`).join('')}
 };
 
 /** A run of steps, repeated. */
@@ -212,6 +261,10 @@ export function emitPlayer(needs: EngineNeeds): string {
 
   const mirrorCall = needs.mirrorPattern ? `\n  if (mirrored) mirrorPattern();` : ''
 
+  // The base delay, unless this step is scaled off it, pinned past it, or both.
+  const follows = needs.scaledSpeed ? 'scaleStepSpeed(step.speedScale)' : 'frameDelayMs'
+  const stepMs = needs.fixedSpeed ? `step.speedMs ? step.speedMs : ${follows}` : follows
+
   return `void playStep(uint8_t index) {
   Step step;
   memcpy_P(&step, &STEPS[index], sizeof(step));
@@ -220,7 +273,7 @@ export function emitPlayer(needs: EngineNeeds): string {
   loadPattern(step.pattern, step.tileRows, step.tileCols);${mirrorCall}
   if (step.flags & FLAG_PRELOAD) fillPanelFromPattern(mirrored);
 
-  uint16_t stepMs = step.speedMs ? step.speedMs : frameDelayMs;
+  uint16_t stepMs = ${stepMs};
   switch (step.motion) {
 ${branches.join('\n')}
     default:

@@ -81,3 +81,35 @@ export async function compileSketch(
     body: JSON.stringify({ sketch, fqbn, name }),
   })
 }
+
+export type BatchCompileReply = {
+  id: string
+  ok: boolean
+  flash: number | null
+  sram: number | null
+  flashMax: number | null
+  sramMax: number | null
+  error: string
+  cached: boolean
+  ms: number
+}
+
+/**
+ * Compiles a whole search round in one request.
+ *
+ * The optimizer runs in the browser — it has the project and the generator —
+ * and only the compiling has to happen out here. Sending a round at a time is
+ * what lets the server run four of them at once.
+ */
+export async function compileBatch(
+  jobs: Array<{ id: string; sketch: string }>,
+  fqbn: string,
+  name: string,
+): Promise<BatchCompileReply[]> {
+  const body = await call<{ results: BatchCompileReply[] }>('/compile-batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobs, fqbn, name }),
+  })
+  return body.results
+}

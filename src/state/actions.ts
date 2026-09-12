@@ -1,9 +1,19 @@
-import type { Frame, Grid, Group, Hardware, Project, Tile } from '../types'
+import type {
+  Frame,
+  Grid,
+  Group,
+  Hardware,
+  OptimizationSettings,
+  Project,
+  SpeedControl,
+  Tile,
+} from '../types'
 
 export type Action =
   | { type: 'setName'; name: string }
   | { type: 'setGrid'; grid: Grid }
   | { type: 'setHardware'; patch: Partial<Hardware> }
+  | { type: 'setSpeed'; patch: Partial<SpeedControl>; coalesce?: boolean }
   | { type: 'setRowColors'; colors: string[] }
   | { type: 'selectFrame'; id: string | null }
   | { type: 'addFrame'; groupId?: string }
@@ -18,6 +28,7 @@ export type Action =
   | { type: 'deleteGroup'; id: string }
   | { type: 'moveFrame'; frameId: string; toGroupId: string; toIndex: number }
   | { type: 'moveGroup'; id: string; delta: number }
+  | { type: 'setOptimization'; optimization: OptimizationSettings | undefined }
   | { type: 'loadProject'; project: Project }
   | { type: 'undo' }
   | { type: 'redo' }

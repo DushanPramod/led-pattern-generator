@@ -4,6 +4,24 @@ import { useFrameActions } from '../state/useProject'
 
 type Props = { frame: Frame; grid: Grid }
 
+/**
+ * Nudge directions, laid out as the same 3x3 pad the Movement panel uses; the
+ * centre is the empty cell that pad keeps for "no movement". Diagonals are a
+ * single call with both deltas set, so a shape moves one cell corner-ways
+ * rather than needing two clicks.
+ */
+const NUDGES: Array<{ label: string; title: string; dr: number; dc: number } | null> = [
+  { label: '↖', title: 'Nudge up + left', dr: -1, dc: -1 },
+  { label: '↑', title: 'Nudge up', dr: -1, dc: 0 },
+  { label: '↗', title: 'Nudge up + right', dr: -1, dc: 1 },
+  { label: '←', title: 'Nudge left', dr: 0, dc: -1 },
+  null,
+  { label: '→', title: 'Nudge right', dr: 0, dc: 1 },
+  { label: '↙', title: 'Nudge down + left', dr: 1, dc: -1 },
+  { label: '↓', title: 'Nudge down', dr: 1, dc: 0 },
+  { label: '↘', title: 'Nudge down + right', dr: 1, dc: 1 },
+]
+
 export function TileControls({ frame, grid }: Props) {
   const { update, setCells } = useFrameActions(frame.id)
   const region = regionOf(frame, grid)
@@ -137,11 +155,17 @@ export function TileControls({ frame, grid }: Props) {
         <button type="button" onClick={clear}>Clear</button>
         <button type="button" onClick={fill}>Fill</button>
         <button type="button" onClick={invert}>Invert</button>
-        <span className="spacer" />
-        <button type="button" title="Nudge up" onClick={() => nudge(-1, 0)}>↑</button>
-        <button type="button" title="Nudge down" onClick={() => nudge(1, 0)}>↓</button>
-        <button type="button" title="Nudge left" onClick={() => nudge(0, -1)}>←</button>
-        <button type="button" title="Nudge right" onClick={() => nudge(0, 1)}>→</button>
+        <div className="nudge dirpad">
+          {NUDGES.map((n) =>
+            n ? (
+              <button key={n.title} type="button" title={n.title} onClick={() => nudge(n.dr, n.dc)}>
+                {n.label}
+              </button>
+            ) : (
+              <span key="centre" />
+            ),
+          )}
+        </div>
       </div>
     </section>
   )

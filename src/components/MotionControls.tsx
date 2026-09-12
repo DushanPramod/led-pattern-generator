@@ -1,6 +1,19 @@
+import { useState } from 'react'
 import type { Frame, Grid, Motion } from '../types'
 import { bandOptions } from '../lib/grid'
-import { formatStep, makeStep } from '../lib/codegen/loop'
+import { playedFrames } from '../lib/codegen/designs'
+import { engineNeeds, formatStep, makeStep } from '../lib/codegen/loop'
+import {
+  baseSpeedMs,
+  clampFactor,
+  clampMs,
+  formatFactor,
+  frameSpeedMs,
+  frameStepMs,
+  SPEED_MS_MAX,
+  SPEED_MS_MIN,
+  SPEED_PRESETS,
+} from '../lib/speed'
 import { useFrameActions, useProject } from '../state/useProject'
 
 type Props = { frame: Frame; grid: Grid }
@@ -22,8 +35,29 @@ export function MotionControls({ frame, grid }: Props) {
   const { update } = useFrameActions(frame.id)
   const { motion } = frame
   const bands = bandOptions(grid.rows)
-  // Built by the generator itself, so the preview can never drift from the output.
-  const call = formatStep(makeStep(frame, grid, 'PATTERN'))
+  const base = baseSpeedMs(project.speed)
+  const factor = clampFactor(frame.speedFactor)
+  const pinned = frame.speedMs !== null
+  // Built by the generator itself, so the preview can never drift from the
+  // output — including which speed columns the table carries, which depends on
+  // what the rest of the timeline does, not on this frame alone.
+  const needs = engineNeeds(playedFrames(project.frames, project.groups), grid, project.groups)
+  const call = formatStep(makeStep(frame, grid, 'PATTERN'), needs)
+
+  // Typed like the panel sizes: committed on blur or Enter, so a half-typed
+  // number is never read and one edit is one undo entry.
+  const [draftMs, setDraftMs] = useState(String(frame.speedMs ?? base))
+  const [draftOf, setDraftOf] = useState(frame)
+  if (draftOf !== frame) {
+    setDraftOf(frame)
+    setDraftMs(String(frame.speedMs ?? base))
+  }
+  const commitMs = () => {
+    if (draftMs.trim() === '' || !Number.isFinite(Number(draftMs))) {
+      return setDraftMs(String(frame.speedMs ?? base))
+    }
+    update({ speedMs: clampMs(Number(draftMs)) })
+  }
   const mirrorIgnored =
     !!grid.halfWidth &&
     frame.mirror &&
@@ -168,21 +202,78 @@ export function MotionControls({ frame, grid }: Props) {
             onChange={(e) => setSteps(Number(e.target.value))}
           />
         </label>
-        <label className="field small">
-          <span>Speed (ms/step)</span>
-          <input
-            type="number"
-            min={1}
-            placeholder={`f = ${project.hardware.defaultSpeed}`}
-            value={frame.speed ?? ''}
-            onChange={(e) =>
-              update({ speed: e.target.value === '' ? null : Math.max(1, Number(e.target.value)) })
-            }
-          />
-        </label>
+        <div className="field grow">
+          <span>Step speed</span>
+          <div className="speed-modes">
+            <div className="seg">
+              <button
+                type="button"
+                className={pinned ? '' : 'on'}
+                onClick={() => update({ speedMs: null })}
+              >
+                Follow base
+              </button>
+              <button
+                type="button"
+                className={pinned ? 'on' : ''}
+                // The factor is left alone, so releasing the pin restores it.
+                onClick={() => update({ speedMs: frameSpeedMs(base, factor) })}
+              >
+                Fixed ms
+              </button>
+            </div>
+
+            {pinned ? (
+              <input
+                type="number"
+                className="ms"
+                min={SPEED_MS_MIN}
+                max={SPEED_MS_MAX}
+                value={draftMs}
+                onChange={(e) => setDraftMs(e.target.value)}
+                onBlur={commitMs}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                }}
+              />
+            ) : (
+              <div className="chips">
+                {SPEED_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    className={preset.factor === factor ? 'chip on' : 'chip'}
+                    onClick={() => update({ speedFactor: preset.factor })}
+                    title={`${frameSpeedMs(base, preset.factor)} ms per step at the current base`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <p className="note span">
-          Leave speed empty to follow the global <code>f</code>
-          {project.hardware.useSpeedPot ? ` (live from the ${project.hardware.speedPin} pot)` : ''}.
+          {pinned ? (
+            <>
+              Held for <strong>{frameStepMs(base, frame)} ms</strong> per step, fixed
+              {project.speed.useController
+                ? ` — this frame ignores the ${project.speed.pin} controller, so the knob will not
+                   change it`
+                : ', whatever the project base is set to'}
+              .
+            </>
+          ) : (
+            <>
+              A multiple of the project's base speed, not a fixed time: at {formatFactor(factor)}{' '}
+              this frame holds each step for <strong>{frameStepMs(base, frame)} ms</strong> against
+              a base of {base} ms
+              {project.speed.useController
+                ? `, and follows the ${project.speed.pin} controller as it is turned`
+                : ''}
+              .
+            </>
+          )}
         </p>
       </div>
     </section>

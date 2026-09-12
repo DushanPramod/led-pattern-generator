@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { PanelColors } from './PanelColors'
+import { SpeedSetup } from './SpeedSetup'
 import { useProject } from '../state/useProject'
 import { estimateSram } from '../lib/codegen'
 import { canHalfWidth, framesClippedBy, sourceCols } from '../lib/grid'
 import { colorRuns, describeColor } from '../lib/colors'
+import { baseSpeedMs } from '../lib/speed'
 import type { Grid, ScanOrder } from '../types'
 
 const PRESETS = [
-  { label: '8 x 32', rows: 8, cols: 32, halfWidth: false },
-  { label: '16 x 32', rows: 16, cols: 32, halfWidth: false },
+  { label: '8 x 32', rows: 8, cols: 32 },
+  { label: '16 x 32', rows: 16, cols: 32 },
 ]
 
 /** Short description of the LED colours, for the locked summary line. */
@@ -28,11 +30,14 @@ export function PanelSetup() {
   const { project, dispatch } = useProject()
   const { grid, hardware } = project
   const [showPins, setShowPins] = useState(false)
+  const [showSpeed, setShowSpeed] = useState(false)
   const [showColors, setShowColors] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const [draft, setDraft] = useState(() => ({ grid, rows: String(grid.rows), cols: String(grid.cols) }))
   const sram = estimateSram(grid.rows, grid.cols, grid.halfWidth)
-  const halfOk = canHalfWidth(grid)
+  const speedSummary = project.speed.useController
+    ? `${project.speed.pin} pot`
+    : `${baseSpeedMs(project.speed)} ms fixed`
   const frameCount = project.frames.length
   // With no frames there is nothing to protect, so the panel opens editable.
   const locked = frameCount > 0 && !unlocked
@@ -152,27 +157,17 @@ export function PanelSetup() {
                     key={p.label}
                     type="button"
                     className={
-                      grid.rows === p.rows && grid.cols === p.cols && !!grid.halfWidth === p.halfWidth
+                      grid.rows === p.rows && grid.cols === p.cols && !grid.halfWidth
                         ? 'chip on'
                         : 'chip'
                     }
-                    onClick={() => setGrid({ rows: p.rows, cols: p.cols, halfWidth: p.halfWidth })}
+                    onClick={() => setGrid({ rows: p.rows, cols: p.cols, halfWidth: false })}
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
             </div>
-
-            <label className="field check half">
-              <input
-                type="checkbox"
-                checked={!!grid.halfWidth}
-                disabled={!halfOk}
-                onChange={(e) => setGrid({ halfWidth: e.target.checked })}
-              />
-              <span title={halfOk ? undefined : 'Needs an even column count'}>Half-width source</span>
-            </label>
 
             <button
               type="button"
@@ -189,6 +184,14 @@ export function PanelSetup() {
             )}
           </>
         )}
+
+        <button
+          type="button"
+          className={showSpeed ? 'ghost on' : 'ghost'}
+          onClick={() => setShowSpeed((v) => !v)}
+        >
+          {showSpeed ? 'Hide speed' : `Speed · ${speedSummary}`}
+        </button>
 
         <button type="button" className="ghost" onClick={() => setShowPins((v) => !v)}>
           {showPins ? 'Hide wiring' : 'Wiring & pins'}
@@ -215,6 +218,8 @@ export function PanelSetup() {
             ? 'Too large for an Uno or Nano (2048 B) — use a Mega (8192 B).'
             : 'Too large even for a Mega (8192 B). Reduce the panel size.'}
       </p>
+
+      {showSpeed && <SpeedSetup />}
 
       {!locked && showColors && <PanelColors />}
 
@@ -247,48 +252,6 @@ export function PanelSetup() {
               <option value="descending">Descending</option>
             </select>
           </label>
-
-          <label className="field small check">
-            <input
-              type="checkbox"
-              checked={hardware.useSpeedPot}
-              onChange={(e) => dispatch({ type: 'setHardware', patch: { useSpeedPot: e.target.checked } })}
-            />
-            <span>Speed pot on {hardware.speedPin}</span>
-          </label>
-
-          {hardware.useSpeedPot ? (
-            <>
-              <label className="field small">
-                <span>Pot min (ms)</span>
-                <input
-                  type="number"
-                  value={hardware.speedMin}
-                  onChange={(e) => dispatch({ type: 'setHardware', patch: { speedMin: Number(e.target.value) } })}
-                />
-              </label>
-              <label className="field small">
-                <span>Pot max (ms)</span>
-                <input
-                  type="number"
-                  value={hardware.speedMax}
-                  onChange={(e) => dispatch({ type: 'setHardware', patch: { speedMax: Number(e.target.value) } })}
-                />
-              </label>
-            </>
-          ) : (
-            <label className="field small">
-              <span>Speed f (ms)</span>
-              <input
-                type="number"
-                min={1}
-                value={hardware.defaultSpeed}
-                onChange={(e) =>
-                  dispatch({ type: 'setHardware', patch: { defaultSpeed: Number(e.target.value) } })
-                }
-              />
-            </label>
-          )}
 
           <p className="note span">
             Column shifting order is the one spot that depends on how the 74HC595 chain is

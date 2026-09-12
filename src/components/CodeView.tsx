@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { generate } from '../lib/codegen'
+import { projectOptions } from '../lib/optimize/settings'
 import { useProject } from '../state/useProject'
 
 function download(fileName: string, text: string) {
@@ -15,7 +16,8 @@ export function CodeView() {
   const { project } = useProject()
   const [split, setSplit] = useState(false)
   const [copied, setCopied] = useState(false)
-  const sketch = useMemo(() => generate(project), [project])
+  // Whatever the project is set to optimise for is what gets downloaded.
+  const sketch = useMemo(() => generate(project, projectOptions(project)), [project])
 
   const text = split ? sketch.split.mainFile : sketch.main
   const lineCount = text.split('\n').length

@@ -1,9 +1,10 @@
 import type { Project } from '../../types'
 import { colorRuns, describeColor, normalizeRowColors } from '../colors'
 import { sourceCols } from '../grid'
-import { assignPatternNames, emitPatterns, packFrame, playedFrames } from './designs'
+import { emitPlannedPatterns, planPatterns, playedFrames } from './designs'
 import { emitConstants, emitEngine, emitSetup, frameBytes, patternBytes } from './engine'
 import { buildSteps, emitPlayer, emitTables, emitTypes, engineNeeds } from './loop'
+import { has, NO_PASSES, PASS_META, type CodegenOptions } from './options'
 
 export const BOARD_SRAM = { Uno: 2048, Nano: 2048, Leonardo: 2560, Mega: 8192 } as const
 
@@ -15,10 +16,28 @@ export type SramEstimate = {
   recommendedFree: number
 }
 
-export function estimateSram(rows: number, cols: number, halfWidth = false): SramEstimate {
+/**
+ * Pointer, rows, cols, stride and the mirror flag — what reading patterns
+ * straight out of PROGMEM costs instead of a whole second buffer.
+ *
+ * Six bytes of fields, plus one of padding: the pointer wants two-byte
+ * alignment and the five single bytes around it leave a hole. Seven is what
+ * avr-gcc actually reports, on 8x32, 16x48, 20x48 half-width and 12x30 alike.
+ */
+export const PATTERN_DESCRIPTOR_BYTES = 7
+
+export function estimateSram(
+  rows: number,
+  cols: number,
+  halfWidth = false,
+  options: CodegenOptions = NO_PASSES,
+): SramEstimate {
   const patternCols = halfWidth ? Math.floor(cols / 2) : cols
-  // One bit per LED: ceil(cols / 8) bytes per row, for each of the two buffers.
-  const arrayBytes = rows * Math.ceil(cols / 8) + rows * Math.ceil(patternCols / 8)
+  // One bit per LED: ceil(cols / 8) bytes per row, for each buffer that exists.
+  const patternRam = has(options, 'progmemPatternRead')
+    ? PATTERN_DESCRIPTOR_BYTES
+    : rows * Math.ceil(patternCols / 8)
+  const arrayBytes = rows * Math.ceil(cols / 8) + patternRam
   const recommendedFree = 300
   return {
     arrayBytes,
@@ -51,9 +70,19 @@ function colorNote(project: Project): string[] {
   ]
 }
 
-function banner(project: Project): string {
+/**
+ * Records which passes shaped this sketch, so a downloaded .ino says how it was
+ * built. With no passes enabled this prints nothing and the banner is unchanged.
+ */
+function optimizationNote(options: CodegenOptions): string[] {
+  if (options.passes.size === 0) return []
+  const labels = [...options.passes].map((pass) => PASS_META[pass].label)
+  return [` *`, ` * Optimised for low memory:`, ...labels.map((l) => ` *   ${l}`)]
+}
+
+function banner(project: Project, options: CodegenOptions): string {
   const { rows, cols, halfWidth } = project.grid
-  const sram = estimateSram(rows, cols, halfWidth)
+  const sram = estimateSram(rows, cols, halfWidth, options)
   return [
     `/*`,
     ` * ${project.name} — ${rows} x ${cols} LED matrix`,
@@ -62,13 +91,16 @@ function banner(project: Project): string {
     ` * Two 74HC595 chains share one latch: the first shifts ${cols} column bits per row,`,
     ` * the second selects one of ${rows} rows. refreshPanel() multiplexes them.`,
     ` *`,
-    ` * Frames are stored one bit per LED and patterns live in PROGMEM, so the two`,
-    ` * buffers cost ${sram.arrayBytes} bytes of SRAM${
+    ...(has(options, 'progmemPatternRead')
+      ? [` * Frames are stored one bit per LED and patterns are read from PROGMEM as`]
+      : [` * Frames are stored one bit per LED and patterns live in PROGMEM, so the two`]),
+    ` * ${has(options, 'progmemPatternRead') ? 'they play, so the panel buffer costs' : 'buffers cost'} ${sram.arrayBytes} bytes of SRAM${
       sram.fitsUno ? '' : ' — too large for an Uno/Nano (2048 B), use a Mega'
     }.`,
     ...(halfWidth
       ? [` * Patterns are stored ${Math.floor(cols / 2)} columns wide and repeated or mirrored.`]
       : []),
+    ...optimizationNote(options),
     ...colorNote(project),
     ` */`,
   ].join('\n')
@@ -82,27 +114,31 @@ export type GeneratedSketch = {
   sram: SramEstimate
 }
 
-export function generate(project: Project): GeneratedSketch {
-  const { grid, hardware, frames, groups } = project
+export function generate(
+  project: Project,
+  options: CodegenOptions = NO_PASSES,
+): GeneratedSketch {
+  const { grid, hardware, speed, frames, groups } = project
   // Only frames actually placed on the timeline reach the sketch.
   const used = playedFrames(frames, groups)
-  const names = assignPatternNames(used)
+  // Which frames share a table is decided here, before any C is written.
+  const plan = planPatterns(used, grid, options)
   const needs = engineNeeds(used, grid, groups)
-  const { steps, sequences } = buildSteps(used, groups, grid, names)
+  const { steps, sequences } = buildSteps(used, groups, grid, plan.names)
 
-  const patterns = emitPatterns(used, grid, names)
-  const tables = steps.length > 0 ? emitTables(steps, sequences) : ''
+  const patterns = emitPlannedPatterns(plan)
+  const tables = steps.length > 0 ? emitTables(steps, sequences, needs) : ''
 
   const name = sketchName(project.name)
   const sections = (withPatterns: boolean) =>
     [
-      banner(project),
-      emitConstants(grid, hardware),
-      emitTypes(),
+      banner(project, options),
+      emitConstants(grid, hardware, speed, options),
+      emitTypes(needs),
       ...(withPatterns ? [patterns] : []),
       tables,
-      emitSetup(hardware),
-      emitEngine(grid, hardware, needs),
+      emitSetup(speed),
+      emitEngine(grid, hardware, speed, needs, options),
       emitPlayer(needs),
     ]
       .filter((section) => section.trim().length > 0)
@@ -117,7 +153,7 @@ export function generate(project: Project): GeneratedSketch {
     },
     fileName: `${name}.ino`,
     designsFileName: 'patterns.ino',
-    sram: estimateSram(grid.rows, grid.cols, grid.halfWidth),
+    sram: estimateSram(grid.rows, grid.cols, grid.halfWidth, options),
   }
 }
 
@@ -158,21 +194,31 @@ export type MemoryEstimate = {
   designs: number
 }
 
-export function estimateMemory(project: Project): MemoryEstimate {
+export function estimateMemory(
+  project: Project,
+  options: CodegenOptions = NO_PASSES,
+): MemoryEstimate {
   const { grid, frames, groups } = project
   const used = playedFrames(frames, groups)
-  const { steps } = buildSteps(used, groups, grid, assignPatternNames(used))
+  const plan = planPatterns(used, grid, options)
+  const { steps } = buildSteps(used, groups, grid, plan.names)
 
   // frameBuffer + pattern + frameDelayMs (2) + stepStartedAt (4) + the core's 9.
+  const patternRam = has(options, 'progmemPatternRead')
+    ? PATTERN_DESCRIPTOR_BYTES
+    : grid.rows * patternBytes(grid)
   const sramGlobals =
-    grid.rows * frameBytes(grid) + grid.rows * patternBytes(grid) + 2 + 4 + SRAM_CORE_OVERHEAD
+    grid.rows * frameBytes(grid) + patternRam + 2 + 4 + SRAM_CORE_OVERHEAD
 
+  // Shared tables are emitted once, so price the tables rather than the frames.
   let storedBytes = 0
+  for (const table of plan.tables) {
+    storedBytes += table.rows * (table.bytes[0]?.length ?? 0)
+  }
+
   let pixels = 0
   const sc = sourceCols(grid)
   for (const frame of used) {
-    const packed = packFrame(frame, grid)
-    storedBytes += packed.rows * (packed.bytes[0]?.length ?? 0)
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < sc; c++) if (frame.cells[r * grid.cols + c]) pixels++
     }

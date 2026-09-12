@@ -1,25 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_LED_COLOR, unlit } from '../lib/colors'
 import { renderTimeline } from '../lib/simulate'
+import { baseSpeedMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
 
 const SCREEN_BG = '#07090d'
-const MIN_DELAY = 1
-const MAX_DELAY = 10000
-
-const clampDelay = (ms: number) => Math.min(MAX_DELAY, Math.max(MIN_DELAY, Math.round(ms)))
 
 export function Preview() {
   const { project, selectedFrame } = useProject()
-  const { grid, hardware, rowColors } = project
+  const { grid, rowColors } = project
+  // Every step in the preview is a multiple of this, so the timeline is rebuilt
+  // whenever the controller is moved or the fixed delay is retyped.
+  const base = baseSpeedMs(project.speed)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(true)
   const [rate, setRate] = useState(1)
-  // A manual delay overrides both the per-frame speed and the rate presets.
-  // manualText keeps what is in the box so it can be cleared while typing,
-  // while manualMs holds the last usable value the preview actually runs at.
-  const [manualMs, setManualMs] = useState<number | null>(null)
-  const [manualText, setManualText] = useState('')
   const [soloFrame, setSoloFrame] = useState(false)
   const [shape, setShape] = useState<'flat' | 'round' | 'fan'>('flat')
   const [sweep, setSweep] = useState(270)
@@ -29,10 +24,10 @@ export function Preview() {
   const steps = useMemo(() => {
     if (soloFrame && selectedFrame) {
       const solo = [{ id: 'solo', repeat: 1, frameIds: [selectedFrame.id] }]
-      return renderTimeline(project.frames, solo, grid, hardware.defaultSpeed)
+      return renderTimeline(project.frames, solo, grid, base)
     }
-    return renderTimeline(project.frames, project.groups, grid, hardware.defaultSpeed)
-  }, [project.frames, project.groups, grid, hardware.defaultSpeed, soloFrame, selectedFrame])
+    return renderTimeline(project.frames, project.groups, grid, base)
+  }, [project.frames, project.groups, grid, base, soloFrame, selectedFrame])
 
   // Derived during render so a shrinking timeline never leaves the scrub past the end.
   const step = steps.length === 0 ? 0 : Math.min(rawStep, steps.length - 1)
@@ -49,8 +44,7 @@ export function Preview() {
         let next = current
         let budget = acc
         for (;;) {
-          const delay =
-            manualMs ?? Math.max(1, (steps[next % steps.length]?.delay ?? 50) / rate)
+          const delay = Math.max(1, (steps[next % steps.length]?.delay ?? 50) / rate)
           if (budget < delay) break
           budget -= delay
           next = (next + 1) % steps.length
@@ -62,7 +56,7 @@ export function Preview() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [playing, rate, manualMs, steps])
+  }, [playing, rate, steps])
 
   // Round and fan modes: the panel is bent into a disc — every column becomes a
   // spoke and every row a ring, which is how the board is physically built. A
@@ -162,9 +156,10 @@ export function Preview() {
   }, [steps, step, grid, rowColors, shape])
 
   const current = steps[step]
-  // What the preview is really waiting between steps, which is the frame's own
-  // speed only when neither the manual box nor a rate preset is in play.
-  const shownDelay = manualMs ?? Math.max(1, Math.round((current?.delay ?? 0) / rate))
+  // What the preview is really waiting between steps. It is the step's real
+  // hold time only at 1x playback: the playback rate is a viewing convenience
+  // here and never reaches the sketch, unlike the frame's own speed factor.
+  const shownDelay = Math.max(1, Math.round((current?.delay ?? 0) / rate))
 
   return (
     <section className="panel preview">
@@ -204,51 +199,19 @@ export function Preview() {
             Fan
           </button>
         </div>
-        <label className="field small">
-          <span>Speed</span>
-          <select
-            value={manualMs == null ? String(rate) : 'manual'}
-            onChange={(e) => {
-              if (e.target.value === 'manual') {
-                // Start from whatever the preview is already running at, so
-                // switching to manual doesn't jump the speed.
-                const seed = clampDelay(Math.round((steps[step]?.delay ?? hardware.defaultSpeed) / rate))
-                setManualMs(seed)
-                setManualText(String(seed))
-              } else {
-                setManualMs(null)
-                setManualText('')
-                setRate(Number(e.target.value))
-              }
-            }}
-          >
+        <label
+          className="field small"
+          title="How fast this preview plays. The panel is unaffected — frame speed is set under Movement."
+        >
+          <span>Playback</span>
+          <select value={String(rate)} onChange={(e) => setRate(Number(e.target.value))}>
             <option value="0.25">0.25x</option>
             <option value="0.5">0.5x</option>
             <option value="1">1x</option>
             <option value="2">2x</option>
             <option value="4">4x</option>
-            <option value="manual">Manual</option>
           </select>
         </label>
-        {manualMs != null && (
-          <label className="field small">
-            <span>ms / step</span>
-            <input
-              type="number"
-              min={MIN_DELAY}
-              max={MAX_DELAY}
-              step={5}
-              value={manualText}
-              onChange={(e) => {
-                setManualText(e.target.value)
-                const next = Number(e.target.value)
-                // An empty or half-typed box keeps the last good delay running.
-                if (e.target.value !== '' && Number.isFinite(next)) setManualMs(clampDelay(next))
-              }}
-              onBlur={() => setManualText(String(manualMs))}
-            />
-          </label>
-        )}
       </div>
 
       {shape !== 'flat' && (
@@ -292,11 +255,7 @@ export function Preview() {
         {steps.length === 0
           ? 'Add a frame to the timeline to preview it.'
           : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step${
-              manualMs != null
-                ? ` (manual, sketch uses ${current?.delay ?? 0} ms)`
-                : rate !== 1
-                  ? ` (${current?.delay ?? 0} ms at 1x)`
-                  : ''
+              rate !== 1 ? ` (${current?.delay ?? 0} ms on the panel)` : ''
             }`}
       </p>
       {shape !== 'flat' && (

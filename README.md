@@ -45,7 +45,15 @@ The hex is legible as the art itself, which makes patterns easy to tweak by hand
 - **Movement** - `runScroll()` in eight directions, `runHold()`, or `scrollBands()` where each
   horizontal band moves left or right independently.
 - **Pins** - configurable under *Wiring & pins*, defaulting to the example wiring
-  (`data1=2, str1=3, clock1=4, data2=5, clock2=6`) with the speed dial on `A0`.
+  (`data1=2, str1=3, clock1=4, data2=5, clock2=6`).
+- **Speed** - a project-level decision under *Speed*. Either the build has an analog preset
+  controller fitted, in which case the reading on its pin is mapped onto a millisecond range
+  (1-5000 ms, slowest end always above the fastest) and `readSpeedDial()` is emitted, or it has
+  not, in which case one step delay is compiled in. Either way that is the *base*, and each frame plays at a multiple of it - 0.5x,
+  1x, 2x - so turning the knob rescales the whole timeline and keeps its relative timing. A
+  frame can instead pin a delay of its own in milliseconds, which ignores the base and the
+  controller both. The step table carries only the columns the timeline uses: nothing when every
+  frame follows the base, a byte per step for presets, two more only where a delay is pinned.
 
 ## Why it is built this way
 
@@ -112,6 +120,51 @@ held-out geometry since.
 Flash gets a range. The model prices pattern bytes, timeline steps and each optional engine piece
 the timeline pulls in, and the fitted coefficients are physically meaningful: 1.01 bytes of Flash
 per byte of PROGMEM pattern, and 13.4 per step, matching the `Step` struct size.
+
+## Optimising for low memory
+
+The **Memory** tab has an *Optimise for low memory* panel with three levels. **Off** is the default
+and emits exactly what it always did. **Safe** keeps one readable hex table per frame.
+**Aggressive** also allows layouts that trade that legibility for bytes.
+
+*Find the smallest build* does not guess. It compiles candidates with `arduino-cli`, reads the real
+Flash and SRAM figures back, and keeps whichever combination actually won — a baseline, then each
+applicable pass alone, then the union of the winners, then a hill-climb that tries removing and
+re-adding members until nothing improves. Passes that cannot apply are never compiled at all: a
+timeline with no repeated artwork has nothing for pattern sharing to find, and counting answers
+that in microseconds.
+
+Measuring matters because guessing is unreliable here — avr-gcc links with `--gc-sections`, so code
+you thought you were saving may already have been stripped. Measured on `arduino:avr:uno`:
+
+| Project | Flash | SRAM |
+| --- | --- | --- |
+| 8x32, one tiled 8x8 design | -370 B (-14%) | -25 B (-32%) |
+| 16x48, two full-panel designs | -134 B (-5%) | **-89 B (-43%)** |
+| 20x48 half-width, mirrored | -128 B (-5%) | -53 B (-27%) |
+| 16x48, a 24-design library | **-1554 B (-30%)** | -89 B (-43%) |
+
+The largest single win is dropping the `pattern[]` RAM buffer: patterns are addressed straight in
+PROGMEM, and the two modulos that read them *are* the tiling, so `loadPattern()` no longer copies or
+repeats anything. It costs seven bytes of descriptor and saves a whole bit-packed buffer.
+
+### The output cannot change
+
+Every candidate is replayed against `src/lib/simulate.ts` — the same simulator the preview runs, and
+which is never modified to accommodate a pass — and compared frame by frame, both on the real
+project and across the 400-timeline fuzz corpus. A candidate that differs anywhere is rejected
+before it costs a compile.
+
+```bash
+npm run verify            # engine, every pass, and the unchanged default output
+npm run optimize          # search the sample projects end to end
+npm run measure-passes    # what each pass saves, per project
+```
+
+`verify-optimizations.mjs` also asserts `mirrorApplies` and `needsPreload` directly. Those two are
+imported by the generator *from* the simulator, so a bug in either changes both sides of the diff
+identically and passes — which it demonstrably does: breaking `mirrorApplies` on purpose still
+leaves all 6517 frames reported identical, and only the direct assertions catch it.
 
 ## Saving work
 

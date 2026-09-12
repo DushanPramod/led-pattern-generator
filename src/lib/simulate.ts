@@ -1,5 +1,6 @@
 import type { Frame, Grid, Motion } from '../types'
 import { sourceCols } from './grid'
+import { frameStepMs } from './speed'
 
 /**
  * TypeScript port of the Arduino engine in Matrix8x32/Matrix8x32.ino, plus the
@@ -298,7 +299,7 @@ export function renderTimeline(
   frames: Frame[],
   groups: { id: string; repeat: number; frameIds: string[] }[],
   grid: Grid,
-  defaultSpeed: number,
+  baseSpeed: number,
   maxSteps = 4000,
 ): RenderedStep[] {
   const byId = new Map(frames.map((f) => [f.id, f]))
@@ -314,7 +315,9 @@ export function renderTimeline(
         const mirrored = mirrorApplies(frame, grid)
         if (needsPreload(frame)) copyToMainFull(a, m, grid, mirrored)
         const steps = motionSteps(frame.motion)
-        const delay = frame.speed ?? defaultSpeed
+        // The same integer maths the sketch does, so the preview holds each
+        // step for exactly as long as the panel will.
+        const delay = frameStepMs(baseSpeed, frame)
         // The two motion families render at opposite ends of a step, and the
         // generated C is the authority on which. runScroll() shifts and feeds a
         // row, *then* holds; runBands() holds first and shifts afterwards, so

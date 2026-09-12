@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, type ReactNode } from 'react'
 import type { Frame, Grid, Project, SerializedProject } from '../types'
 import { canHalfWidth, deserialize, resizeCells, serialize, snapToDivisor, sourceCols } from '../lib/grid'
 import { normalizeRowColors } from '../lib/colors'
+import { normalizeSpeedControl } from '../lib/speed'
 import { newFrame, newGroup, starterProject, uid } from './defaults'
 import type { Action } from './actions'
 import { ProjectContext, type Store } from './context'
@@ -85,11 +86,26 @@ function reducer(state: State, action: Action): State {
     case 'setHardware':
       return commit(state, { ...project, hardware: { ...project.hardware, ...action.patch } })
 
+    // Speed is one project-level decision with two shapes, so the values for
+    // the shape that is off are kept rather than cleared: turning the
+    // controller off and on again brings its range and position back.
+    case 'setSpeed': {
+      const next = { ...project, speed: normalizeSpeedControl({ ...project.speed, ...action.patch }) }
+      // Sweeping the controller coalesces into one undo entry, the way a brush
+      // stroke does, rather than one per pixel of travel.
+      return action.coalesce ? { ...state, project: next } : commit(state, next)
+    }
+
     case 'setRowColors':
       return commit(state, {
         ...project,
         rowColors: normalizeRowColors(action.colors, project.grid.rows),
       })
+
+    // Which optimisations are applied is a property of the project, so it is
+    // saved, exported and undoable like anything else the user chose.
+    case 'setOptimization':
+      return commit(state, { ...project, optimization: action.optimization })
 
     case 'selectFrame':
       return { ...state, selectedFrameId: action.id }

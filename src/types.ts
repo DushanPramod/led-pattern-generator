@@ -1,3 +1,5 @@
+import type { OptimizationLevel, PassId } from './lib/codegen/options'
+
 export type Grid = {
   rows: number
   cols: number
@@ -17,12 +19,37 @@ export type Hardware = {
   clock1: number
   data2: number
   clock2: number
-  useSpeedPot: boolean
-  speedPin: string
-  speedMin: number
-  speedMax: number
-  defaultSpeed: number
   scanOrder: ScanOrder
+}
+
+/**
+ * How fast the panel steps, for the whole project.
+ *
+ * A build either has an analog preset controller fitted — a pot on an analog
+ * pin, read continuously so the speed follows the knob while the pattern plays
+ * — or it does not, in which case one fixed step delay is compiled in. Both
+ * sets of fields are kept either way, so turning the controller off and on
+ * again does not lose what was configured.
+ *
+ * Whichever applies gives the *base* step delay; each frame then plays at a
+ * multiple of it (see `Frame.speedFactor`).
+ */
+export type SpeedControl = {
+  /** Is a preset controller fitted? Decides the whole shape of the timing code. */
+  useController: boolean
+  /** Analog pin it is wired to, e.g. `A0`. */
+  pin: string
+  /** The millisecond range the raw reading maps onto — both ends 1-5000 ms. */
+  minMs: number
+  maxMs: number
+  /**
+   * Where the knob currently sits, as a raw 0-1023 reading. The panel is not
+   * here to be read, so this is what the preview plays at and what the sketch
+   * starts at before its first live reading.
+   */
+  position: number
+  /** The step delay when no controller is fitted, 1-5000 ms. */
+  stepMs: number
 }
 
 export type Tile = { yy: number; xx: number } | 'full'
@@ -41,7 +68,23 @@ export type Frame = {
   /** Emit copyToMainFull() so the pattern fills the panel instantly instead of scrolling in. */
   preload: boolean
   motion: Motion
-  speed: number | null
+  /**
+   * This frame's speed as a multiple of the project's base step delay: 1 plays
+   * at the base rate, 0.5 at half the delay (twice as fast), 2 at double it.
+   * Stored as a factor rather than a millisecond count so a project driven by
+   * the speed controller keeps its relative timing as the knob is turned.
+   */
+  speedFactor: number
+  /**
+   * A step delay in milliseconds that overrides the factor, so this frame holds
+   * for a fixed time whatever the base speed is — and, with a controller
+   * fitted, whatever the knob is doing. `null` follows the base at
+   * `speedFactor`, which is the usual case.
+   *
+   * The factor is kept alongside rather than cleared, so a frame pinned to a
+   * fixed delay and then released returns to the multiple it had.
+   */
+  speedMs: number | null
 }
 
 export type Group = {
@@ -51,10 +94,32 @@ export type Group = {
   frameIds: string[]
 }
 
+/**
+ * How this project is built for size.
+ *
+ * Optional, so a project saved before the optimizer existed loads unchanged and
+ * SerializedProject stays at version 1. Absent means the plain emitter.
+ */
+export type OptimizationSettings = {
+  level: OptimizationLevel
+  /** The passes the search settled on. */
+  passes: PassId[]
+  /** What the compiler actually reported for that set. */
+  measured?: {
+    fqbn: string
+    flash: number
+    sram: number
+    baselineFlash: number
+    baselineSram: number
+    at: number
+  }
+}
+
 export type Project = {
   name: string
   grid: Grid
   hardware: Hardware
+  speed: SpeedControl
   /**
    * Colour of the LEDs fitted on each row, row 0 first, one entry per row.
    * The panel is driven one bit per LED, so this never reaches the sketch as
@@ -64,10 +129,11 @@ export type Project = {
   rowColors: string[]
   frames: Frame[]
   groups: Group[]
+  optimization?: OptimizationSettings
 }
 
 /** JSON-safe shape used for localStorage + export/import. */
 export type SerializedProject = Omit<Project, 'frames'> & {
-  version: 1
+  version: 2
   frames: Array<Omit<Frame, 'cells'> & { cells: string }>
 }

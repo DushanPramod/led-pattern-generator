@@ -8,7 +8,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify": "node scripts/verify-engine.mjs && node scripts/verify-optimizations.mjs && node scripts/golden-sketches.mjs",
+    "verify:engine": "node scripts/verify-engine.mjs",
+    "verify:optimizations": "node scripts/verify-optimizations.mjs",
+    "golden": "node scripts/golden-sketches.mjs",
+    "optimize": "node scripts/optimize.mjs",
+    "measure-passes": "node scripts/measure-passes.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

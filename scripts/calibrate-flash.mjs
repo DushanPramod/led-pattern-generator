@@ -144,6 +144,7 @@ function build(grid, designCount, pixelsEach, bandKinds, opts = {}) {
     name: 'Cal',
     grid,
     hardware: defaults.DEFAULT_HARDWARE,
+    speed: defaults.DEFAULT_SPEED,
     frames,
     groups: [defaults.newGroup('G', frames.map((f) => f.id))],
   }
