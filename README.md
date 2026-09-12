@@ -55,8 +55,8 @@ The hex is legible as the art itself, which makes patterns easy to tweak by hand
 - **Movement** - `runScroll()` in eight directions, `runHold()`, or bands: `scrollBands()` where
   each horizontal band of rows moves left or right independently, and `scrollBandsVertical()` where
   each vertical band of columns moves up or down.
-- **Pins** - configurable under *Wiring & pins*, defaulting to the example wiring
-  (`data1=2, str1=3, clock1=4, data2=5, clock2=6`).
+- **Pins** - configurable under *Wiring & pins*, defaulting to
+  `data1=2, clock1=3, data2=4, clock2=5, latch=6`.
 - **Speed** - a project-level decision under *Speed*. Either the build has an analog preset
   controller fitted, in which case the reading on its pin is mapped onto a millisecond range
   (1-5000 ms, slowest end always above the fastest) and `readSpeedDial()` is emitted, or it has
@@ -227,8 +227,8 @@ quietly.
 
 Every project autosaves to `localStorage`, and opening the site resumes the last one. **Save
 project** downloads a `.budurasmala.json` file: a shared envelope (`format`, `type`, `meta` with
-name and description, and a `data` block owned by the project type). **Open project** — on the
-landing page or in a workspace — reads that file and routes to the right editor. Older
+name and description, and a `data` block owned by the project type). **Open project** on the
+landing page reads that file and routes to the right editor. Older
 `.ledproj.json` files, which are a bare matrix project, still open as Matrix Budurasmala.
 
 ## Project structure

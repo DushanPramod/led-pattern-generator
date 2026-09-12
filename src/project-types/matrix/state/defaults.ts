@@ -6,10 +6,10 @@ export const DEFAULT_GRID: Grid = { rows: 8, cols: 32 }
 
 export const DEFAULT_HARDWARE: Hardware = {
   data1: 2,
-  str1: 3,
-  clock1: 4,
-  data2: 5,
-  clock2: 6,
+  clock1: 3,
+  data2: 4,
+  clock2: 5,
+  latch: 6,
   scanOrder: 'ascending',
   columnDriver: 'direct',
   rowDriver: 'direct',

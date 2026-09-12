@@ -37,7 +37,7 @@ export function Preview({
   // whenever the controller is moved or the fixed delay is retyped.
   const base = baseSpeedMs(project.speed)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(false)
   const [rawStep, setStep] = useState(0)
   const { shape, sweep, rimFirst, rate, soloFrame } = view
   const set = <K extends keyof PreviewView>(key: K, value: PreviewView[K]) =>

@@ -79,7 +79,7 @@ export function ShiftRegisterPinout({ project, svgRef }: {
       pin: '12',
       name: 'RCLK',
       nets: ['latch'],
-      text: `Every register in both chains: D${hardware.str1} (str1), the shared latch.`,
+      text: `Every register in both chains: D${hardware.latch} (latch), shared by both chains.`,
     },
     {
       pin: '9',

@@ -1382,8 +1382,8 @@ function PinTable({ project }: { project: Project }) {
     ['data2 · row data', `D${hardware.data2}`, 'SER (pin 14) of row register #1'],
     ['clock2 · row clock', `D${hardware.clock2}`, `SCLK (pin 11) of all ${rowCount} row registers`],
     [
-      'str1 · latch, both chains',
-      `D${hardware.str1}`,
+      'latch · both chains',
+      `D${hardware.latch}`,
       `RCLK (pin 12) of every register in both chains — ${colCount + rowCount} in total`,
     ],
     ...(speed.useController

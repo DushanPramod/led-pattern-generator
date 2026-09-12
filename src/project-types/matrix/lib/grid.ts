@@ -7,7 +7,7 @@ import {
   normalizeSpeedControl,
   speedRange,
 } from './speed'
-import { DEFAULT_SPEED } from '../state/defaults'
+import { DEFAULT_HARDWARE, DEFAULT_SPEED } from '../state/defaults'
 import type {
   BandAxis,
   Frame,
@@ -204,15 +204,17 @@ function normalizeMotion(motion: Motion): Motion {
 export function deserialize(data: SerializedProject | LegacyProject): Project {
   const size = data.grid.rows * data.grid.cols
   const isLegacy = data.version === 1
-  const hw = data.hardware
+  const hw: Omit<LegacyProject['hardware'], 'latch'> & { latch?: number; str1?: number } =
+    data.hardware
   // Picked field by field so a v1 file's speed keys do not ride along on the
   // hardware block, where nothing would ever read them again.
   const hardware: Hardware = {
     data1: hw.data1,
-    str1: hw.str1,
     clock1: hw.clock1,
     data2: hw.data2,
     clock2: hw.clock2,
+    // Files saved before the rename carry the latch pin as `str1`.
+    latch: hw.latch ?? hw.str1 ?? DEFAULT_HARDWARE.latch,
     scanOrder: hw.scanOrder,
     columnDriver: hw.columnDriver === 'pnp' ? 'pnp' : 'direct',
     rowDriver: hw.rowDriver === 'npn' ? 'npn' : 'direct',

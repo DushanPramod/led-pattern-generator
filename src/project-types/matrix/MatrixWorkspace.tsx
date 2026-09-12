@@ -1,8 +1,7 @@
-import { FolderOpen, Redo2, Save, Undo2 } from 'lucide-react'
+import { Redo2, Save, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppFooter } from '@/components/AppFooter'
 import { AppHeader } from '@/components/AppHeader'
-import { OpenProjectButton } from '@/components/OpenProjectButton'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -30,7 +29,7 @@ function Workspace() {
   // Only the open tab is mounted, so the preview's viewing options are kept
   // here and survive a trip to the code tab.
   const [previewView, setPreviewView] = useState<PreviewView>({
-    shape: 'flat',
+    shape: 'fan',
     sweep: 270,
     rimFirst: false,
     rate: 1,
@@ -85,9 +84,6 @@ function Workspace() {
         <Button type="button" variant="outline" onClick={saveProject}>
           <Save /> Save project
         </Button>
-        <OpenProjectButton variant="outline">
-          <FolderOpen /> Open project
-        </OpenProjectButton>
       </AppHeader>
 
       <PanelSetup />

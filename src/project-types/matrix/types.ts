@@ -31,10 +31,11 @@ export type RowDriver = 'direct' | 'npn'
 
 export type Hardware = {
   data1: number
-  str1: number
   clock1: number
   data2: number
   clock2: number
+  /** Shared latch (RCLK) of both chains. Saved as `str1` before it was renamed. */
+  latch: number
   scanOrder: ScanOrder
   /**
    * Optional, so a project saved before transistor drivers existed loads as

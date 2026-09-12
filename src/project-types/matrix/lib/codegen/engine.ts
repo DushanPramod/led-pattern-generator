@@ -85,7 +85,7 @@ export function emitConstants(
     `#define PIN_COLUMN_CLOCK ${hw.clock1}`,
     `#define PIN_ROW_DATA ${hw.data2}`,
     `#define PIN_ROW_CLOCK ${hw.clock2}`,
-    `#define PIN_LATCH ${hw.str1}`,
+    `#define PIN_LATCH ${hw.latch}`,
     ...(speed.useController
       ? [
           ``,

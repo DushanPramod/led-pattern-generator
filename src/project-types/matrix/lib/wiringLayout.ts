@@ -370,7 +370,7 @@ export function layoutWiring(project: Project): WiringLayout {
   const signals: ArduinoSignal[] = [
     { pin: `D${hardware.data1}`, name: 'data1', what: 'column data', to: 'SER 14', net: 'column', y: pinY(0) },
     { pin: `D${hardware.clock1}`, name: 'clock1', what: 'column clock', to: 'SCLK 11', net: 'column', y: pinY(1) },
-    { pin: `D${hardware.str1}`, name: 'str1', what: 'latch · both chains', to: 'RCLK 12', net: 'latch', y: pinY(2) },
+    { pin: `D${hardware.latch}`, name: 'latch', what: 'both chains', to: 'RCLK 12', net: 'latch', y: pinY(2) },
     { pin: `D${hardware.clock2}`, name: 'clock2', what: 'row clock', to: 'SCLK 11', net: 'row', y: pinY(3) },
     { pin: `D${hardware.data2}`, name: 'data2', what: 'row data', to: 'SER 14', net: 'row', y: pinY(4) },
   ]
