@@ -1,5 +1,6 @@
 import { ArrowRight, FolderOpen, Plus, TriangleAlert } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { FEEDBACK_MAILTO } from '@/components/AboutDialog'
 import { AppFooter } from '@/components/AppFooter'
 import { AppHeader } from '@/components/AppHeader'
 import { OpenProjectButton } from '@/components/OpenProjectButton'
@@ -45,6 +46,23 @@ export function LandingPage() {
 
       <main className="flex grow items-start justify-center py-6 sm:py-12">
         <div className="flex w-full max-w-md flex-col gap-4">
+          <div
+            role="note"
+            className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed"
+          >
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" aria-hidden />
+            <p className="m-0">
+              <span className="font-semibold">Not yet tested on real hardware.</span> The circuits
+              this app designs and the Arduino sketches it generates have not been verified on
+              actual hardware. Use them at your own discretion: build and test on a small prototype
+              first, and check part choices against your parts’ datasheets. If you try it,{' '}
+              <a className="font-medium underline underline-offset-2" href={FEEDBACK_MAILTO}>
+                send feedback
+              </a>{' '}
+              on what worked or needed changing — it helps improve the app.
+            </p>
+          </div>
+
           <form
             onSubmit={create}
             noValidate

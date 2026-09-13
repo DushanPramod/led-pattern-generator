@@ -1,7 +1,8 @@
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
-const EMAIL = 'dushanpramod@gmail.com'
+export const EMAIL = 'dushanpramod@gmail.com'
+export const FEEDBACK_MAILTO = `mailto:${EMAIL}?subject=${encodeURIComponent('LED Pattern Generator — feedback')}`
 
 /** Credit, version and where to send bugs. Opened from the footer. */
 export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -22,7 +23,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
 
         <a
           className="text-sm text-primary underline-offset-4 hover:underline"
-          href={`mailto:${EMAIL}?subject=${encodeURIComponent('LED Pattern Generator — feedback')}`}
+          href={FEEDBACK_MAILTO}
         >
           {EMAIL}
         </a>
