@@ -127,7 +127,10 @@ export default function Preview3D({
   layout,
   shape,
   background = SCREEN_BG,
+  className = 'h-[460px]',
 }: {
+  /** Sizes the view; the renderer follows whatever size that gives it. */
+  className?: string
   grid: Grid
   rowColors: string[]
   cells: Uint8Array | undefined
@@ -146,13 +149,20 @@ export default function Preview3D({
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    // The view may sit in a pop-out window: render, animate and measure on that
+    // window, not the main one.
+    const win = host.ownerDocument.defaultView ?? window
     let renderer: WebGLRenderer
     try {
-      renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+      renderer = new WebGLRenderer({
+        canvas: host.ownerDocument.createElement('canvas'),
+        antialias: true,
+        powerPreference: 'high-performance',
+      })
     } catch {
       return
     }
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
+    renderer.setPixelRatio(Math.min(2, win.devicePixelRatio || 1))
     renderer.toneMapping = ACESFilmicToneMapping
     renderer.setClearColor(SCREEN_BG)
     renderer.domElement.style.display = 'block'
@@ -227,7 +237,7 @@ export default function Preview3D({
       const moved = controls.update()
       composer.render()
       if (fading || moved || interacting) {
-        raf = requestAnimationFrame(frame)
+        raf = win.requestAnimationFrame(frame)
       } else {
         raf = 0
         last = 0
@@ -235,7 +245,7 @@ export default function Preview3D({
     }
 
     const invalidate = () => {
-      if (!raf) raf = requestAnimationFrame(frame)
+      if (!raf) raf = win.requestAnimationFrame(frame)
     }
 
     const resetView = () => {
@@ -264,7 +274,7 @@ export default function Preview3D({
       camera.updateProjectionMatrix()
       invalidate()
     }
-    const observer = new ResizeObserver(resize)
+    const observer = new win.ResizeObserver(resize)
     observer.observe(host)
 
     const onStart = () => {
@@ -303,7 +313,7 @@ export default function Preview3D({
     resize()
 
     return () => {
-      cancelAnimationFrame(raf)
+      win.cancelAnimationFrame(raf)
       observer.disconnect()
       controls.removeEventListener('start', onStart)
       controls.removeEventListener('end', onEnd)
@@ -464,7 +474,7 @@ export default function Preview3D({
   }
 
   return (
-    <div className="relative h-[460px] w-full">
+    <div className={`relative w-full ${className}`}>
       <div ref={hostRef} className="h-full w-full cursor-grab active:cursor-grabbing" />
       <Button
         type="button"

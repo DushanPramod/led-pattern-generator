@@ -200,15 +200,6 @@ export function PanelSetup() {
           </div>
         )}
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="ml-auto"
-          onClick={() => setShowDiagram(true)}
-        >
-          <CircuitBoardIcon /> Wiring diagram
-        </Button>
       </div>
 
       {expanded && (
@@ -337,6 +328,10 @@ export function PanelSetup() {
 
           <Button type="button" variant="ghost" onClick={() => setShowPins((v) => !v)}>
             {showPins ? 'Hide wiring' : 'Wiring & pins'}
+          </Button>
+
+          <Button type="button" variant="ghost" onClick={() => setShowDiagram(true)}>
+            <CircuitBoardIcon /> Wiring diagram
           </Button>
         </div>
 

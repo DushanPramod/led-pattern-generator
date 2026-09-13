@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { PROJECT_TYPES } from '@/core/registry'
 import { LandingPage } from '@/pages/LandingPage'
+import { GuidePage } from '@/pages/guide/GuidePage'
 
 /** One route per project type, straight from the registry. */
 export default function App() {
@@ -9,6 +10,7 @@ export default function App() {
     <Suspense fallback={<p className="p-8 text-center text-muted-foreground">Loading…</p>}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/guide" element={<GuidePage />} />
         {PROJECT_TYPES.map(({ id, path, Workspace }) => (
           <Route key={id} path={path} element={<Workspace />} />
         ))}

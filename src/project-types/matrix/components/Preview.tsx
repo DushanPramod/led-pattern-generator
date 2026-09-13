@@ -1,5 +1,6 @@
-import { Box, Moon, Pause, Play, Square, Sun } from 'lucide-react'
+import { Box, ExternalLink, Moon, PanelRightClose, Pause, Play, Square, Sun } from 'lucide-react'
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { cn } from 'cn'
 import { DEFAULT_LED_COLOR, mix, unlit } from '../lib/colors'
 import { ledLayout } from '../lib/layout'
 import { renderTimeline } from '../lib/simulate'
@@ -17,14 +18,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 const Preview3D = lazy(() => import('./Preview3D'))
 
 /** Keeps a failed 3D download (offline, stale deploy) from taking the page down. */
-class Load3DBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class Load3DBoundary extends Component<{ className: string; children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }
   }
   render() {
     return this.state.failed ? (
-      <p className="m-0 flex h-[460px] items-center justify-center p-6 text-center text-sm text-muted-foreground">
+      <p className={`m-0 flex ${this.props.className} items-center justify-center p-6 text-center text-sm text-muted-foreground`}>
         The 3D preview could not be loaded. Check your connection and reload, or switch back to 2D.
       </p>
     ) : (
@@ -60,18 +61,29 @@ export type PreviewView = {
 export function Preview({
   view,
   onView,
+  popout = false,
+  onPopout,
+  onDock,
 }: {
   view: PreviewView
   onView: (view: PreviewView) => void
+  /** Drawn in its own window: the board grows to fill it. */
+  popout?: boolean
+  onPopout?: () => void
+  onDock?: () => void
 }) {
   const { project, selectedFrame } = useProject()
   const { grid, rowColors } = project
   // Every step in the preview is a multiple of this, so the timeline is rebuilt
   // whenever the controller is moved or the fixed delay is retyped.
   const base = baseSpeedMs(project.speed)
+  const sectionRef = useRef<HTMLElement>(null)
+  const boardRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(false)
   const [rawStep, setStep] = useState(0)
+  // Room the board has to fill in a pop-out window, in CSS pixels.
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null)
   const { shape, dimension, sweep, rimFirst, soloFrame, light } = view
   const look = screen(light)
   const set = <K extends keyof PreviewView>(key: K, value: PreviewView[K]) =>
@@ -91,10 +103,29 @@ export function Preview({
   // Derived during render so a shrinking timeline never leaves the scrub past the end.
   const step = steps.length === 0 ? 0 : Math.min(rawStep, steps.length - 1)
 
+  // In a pop-out the board may be the only thing on screen, so it measures
+  // the space it has. The window's own observer keeps up when the main one
+  // is in the background.
+  useEffect(() => {
+    const el = boardRef.current
+    if (!popout || !el) return
+    const win = el.ownerDocument.defaultView ?? window
+    const observer = new win.ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setBox({ w: Math.floor(width), h: Math.floor(height) })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [popout, dimension])
+
   useEffect(() => {
     if (!playing || steps.length === 0) return
+    // Animate on the window the preview is shown in, which keeps running
+    // when the main window is minimised.
+    const win = sectionRef.current?.ownerDocument.defaultView ?? window
     let raf = 0
-    let last = performance.now()
+    // rAF timestamps count from that window's own time origin.
+    let last = win.performance.now()
     let acc = 0
     const tick = (now: number) => {
       acc += now - last
@@ -111,10 +142,10 @@ export function Preview({
         acc = budget
         return next
       })
-      raf = requestAnimationFrame(tick)
+      raf = win.requestAnimationFrame(tick)
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    raf = win.requestAnimationFrame(tick)
+    return () => win.cancelAnimationFrame(raf)
   }, [playing, steps])
 
   // Round and fan modes: the board as the layout places it, every column a
@@ -123,8 +154,8 @@ export function Preview({
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx || shape === 'flat' || dimension === '3d') return
-    const dpr = window.devicePixelRatio || 1
-    const size = 420
+    const dpr = canvas.ownerDocument.defaultView?.devicePixelRatio || 1
+    const size = popout && box ? Math.max(120, Math.min(box.w, box.h)) : 420
     canvas.width = size * dpr
     canvas.height = size * dpr
     canvas.style.width = `${size}px`
@@ -169,14 +200,17 @@ export function Preview({
         }
       }
     }
-  }, [steps, step, grid, rowColors, shape, dimension, layout, light])
+  }, [steps, step, grid, rowColors, shape, dimension, layout, light, popout, box])
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx || shape !== 'flat' || dimension === '3d') return
-    const cell = Math.max(3, Math.min(12, Math.floor(560 / grid.cols)))
-    const dpr = window.devicePixelRatio || 1
+    const cell =
+      popout && box
+        ? Math.max(3, Math.floor(Math.min(box.w / grid.cols, box.h / grid.rows)))
+        : Math.max(3, Math.min(12, Math.floor(560 / grid.cols)))
+    const dpr = canvas.ownerDocument.defaultView?.devicePixelRatio || 1
     const w = grid.cols * cell
     const h = grid.rows * cell
     canvas.width = w * dpr
@@ -213,26 +247,37 @@ export function Preview({
         }
       }
     }
-  }, [steps, step, grid, rowColors, shape, dimension, layout, light])
+  }, [steps, step, grid, rowColors, shape, dimension, layout, light, popout, box])
 
   const current = steps[step]
   // The preview always plays at the speed set under Movement, so this is the
   // step's real hold time on the panel.
   const shownDelay = Math.max(1, Math.round(current?.delay ?? 0))
+  const boardHeight = popout ? 'h-full' : 'h-[460px]'
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+    <section
+      ref={sectionRef}
+      className={cn(
+        'flex flex-col gap-3 bg-card p-4',
+        popout ? 'h-screen' : 'rounded-xl border',
+      )}
+    >
       {dimension === '3d' ? (
-        <div className="overflow-hidden rounded-lg border" style={{ background: look.bg }}>
-          <Load3DBoundary>
+        <div
+          className={cn('overflow-hidden rounded-lg border', popout && 'min-h-0 flex-1')}
+          style={{ background: look.bg }}
+        >
+          <Load3DBoundary className={boardHeight}>
             <Suspense
               fallback={
-                <p className="m-0 flex h-[460px] items-center justify-center text-sm text-muted-foreground">
+                <p className={`m-0 flex ${boardHeight} items-center justify-center text-sm text-muted-foreground`}>
                   Loading 3D…
                 </p>
               }
             >
               <Preview3D
+                className={boardHeight}
                 grid={grid}
                 rowColors={rowColors}
                 cells={current?.cells}
@@ -244,7 +289,14 @@ export function Preview({
           </Load3DBoundary>
         </div>
       ) : (
-        <div className="flex justify-center overflow-x-auto rounded-lg border p-3" style={{ background: look.bg }}>
+        <div
+          ref={boardRef}
+          className={cn(
+            'flex justify-center rounded-lg border p-3',
+            popout ? 'min-h-0 min-w-0 flex-1 items-center overflow-hidden' : 'overflow-x-auto',
+          )}
+          style={{ background: look.bg }}
+        >
           <canvas ref={canvasRef} />
         </div>
       )}
@@ -270,6 +322,24 @@ export function Preview({
         >
           {light ? <Moon /> : <Sun />} {light ? 'Dark' : 'Gray'}
         </Button>
+        {popout ? (
+          onDock && (
+            <Button type="button" variant="outline" title="Put the preview back in the sidebar" onClick={onDock}>
+              <PanelRightClose /> Dock
+            </Button>
+          )
+        ) : (
+          onPopout && (
+            <Button
+              type="button"
+              variant="outline"
+              title="Open the preview in its own window, to move to another screen"
+              onClick={onPopout}
+            >
+              <ExternalLink /> Pop out
+            </Button>
+          )
+        )}
         <span className="flex-1" />
         {/* How it is drawn and what board it is drawn on are separate choices,
             so each gets its own label and the view is one joined switch. */}
@@ -360,12 +430,13 @@ export function Preview({
           ? 'Add a frame to the timeline to preview it.'
           : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step`}
       </p>
-      {dimension === '3d' && (
+      {/* The pop-out gives its height to the board rather than the explanations. */}
+      {dimension === '3d' && !popout && (
         <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           Drag to orbit, scroll to zoom. LEDs fade in and out the way a real lens glows.
         </p>
       )}
-      {shape !== 'flat' && (
+      {shape !== 'flat' && !popout && (
         <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           The {grid.rows} x {grid.cols} panel wrapped into {shape === 'round' ? 'a disc' : 'a fan'}:{' '}
           {grid.cols} spokes of {grid.rows} LEDs each,{' '}

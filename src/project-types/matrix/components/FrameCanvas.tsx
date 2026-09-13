@@ -15,7 +15,9 @@ type Props = {
 const CANVAS_BG = '#0b0f16'
 
 const MIN_CELL = 7
-const MAX_CELL = 30
+const MAX_CELL = 56
+/** Share of the window height the grid may take. */
+const MAX_HEIGHT_RATIO = 0.7
 
 /** Bresenham, so a fast drag doesn't leave gaps between sampled pointer positions. */
 function line(r0: number, c0: number, r1: number, c1: number): Array<[number, number]> {
@@ -54,14 +56,20 @@ export function FrameCanvas({ frame, grid, rowColors, onCells }: Props) {
     const wrap = wrapRef.current
     if (!wrap) return
     const fit = () => {
-      const available = wrap.clientWidth - 2
-      setCell(Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor(available / grid.cols))))
+      const byWidth = Math.floor((wrap.clientWidth - 2) / grid.cols)
+      // With the full page width to fill, tall panels would otherwise grow off screen.
+      const byHeight = Math.floor((window.innerHeight * MAX_HEIGHT_RATIO) / grid.rows)
+      setCell(Math.max(MIN_CELL, Math.min(MAX_CELL, byWidth, byHeight)))
     }
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(wrap)
-    return () => observer.disconnect()
-  }, [grid.cols])
+    window.addEventListener('resize', fit)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [grid.cols, grid.rows])
 
   // Draw: lit tile cells bright, the tiled/mirrored result dimmed, region outlined.
   useEffect(() => {

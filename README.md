@@ -244,7 +244,7 @@ project and routes to that type's workspace.
 src/
   app/            router (one route per project type) and resume-on-load
   core/           type-agnostic plumbing: ProjectTypeDefinition, registry, file envelope, navigation
-  pages/          landing page
+  pages/          landing page, and guide/ — the user guide at /guide (English and Sinhala)
   components/     shared UI: shadcn ui/, AppHeader, AppFooter, OpenProjectButton, BridgeSetupDialog
   lib/            shared helpers: utils, diagramExport, arduino/ (bridge, boards)
   project-types/

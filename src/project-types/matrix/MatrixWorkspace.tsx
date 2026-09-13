@@ -1,11 +1,11 @@
-import { Redo2, Undo2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ChevronUp, Code2, Cpu, ExternalLink, PanelRightClose, Redo2, Undo2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppFooter } from '@/components/AppFooter'
 import { AppHeader } from '@/components/AppHeader'
+import { PopoutWindow } from '@/components/PopoutWindow'
 import { SaveProjectButton } from '@/components/SaveProjectButton'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { rememberLastProject } from '@/core/lastProject'
 import { useIncomingProjectFile } from '@/core/navigation'
 import { buildProjectFile, downloadProjectFile } from '@/core/projectFile'
@@ -26,9 +26,10 @@ import type { Project, SerializedProject } from './types'
 function Workspace() {
   const { project, selectedFrame, canUndo, canRedo, dispatch } = useProject()
   const { setCells } = useFrameActions(selectedFrame?.id ?? null)
-  const [tab, setTab] = useState<'preview' | 'code' | 'memory'>('preview')
-  // Only the open tab is mounted, so the preview's viewing options are kept
-  // here and survive a trip to the code tab.
+  const [output, setOutput] = useState<'code' | 'memory' | null>(null)
+  const toggleOutput = (next: 'code' | 'memory') => setOutput((current) => (current === next ? null : next))
+  // The preview can be popped out and docked again, so its viewing options are
+  // kept here and survive the remount.
   const [previewView, setPreviewView] = useState<PreviewView>({
     shape: 'fan',
     dimension: '2d',
@@ -37,6 +38,15 @@ function Workspace() {
     soloFrame: false,
     light: false,
   })
+  // The preview can live in its own window instead, e.g. on a second screen.
+  const [poppedOut, setPoppedOut] = useState(false)
+  const [popoutBlocked, setPopoutBlocked] = useState(false)
+  const popoutRef = useRef<Window | null>(null)
+  const popOut = () => {
+    setPopoutBlocked(false)
+    setPoppedOut(true)
+  }
+  const dock = () => setPoppedOut(false)
 
   useEffect(() => {
     rememberLastProject({ type: matrixType.id, name: project.name })
@@ -88,8 +98,26 @@ function Workspace() {
 
       <PanelSetup />
 
-      <div className="grid grid-cols-1 items-start gap-4 wide:grid-cols-[minmax(0,1fr)_minmax(340px,620px)]">
+      {/* With the preview in its own window, the panel editor takes the full width. */}
+      <div
+        className={
+          poppedOut
+            ? 'grid grid-cols-1 items-start gap-4'
+            : 'grid grid-cols-1 items-start gap-4 wide:grid-cols-[minmax(0,1fr)_minmax(340px,620px)]'
+        }
+      >
         <div className="flex min-w-0 flex-col gap-4">
+          {poppedOut && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-4 py-2">
+              <p className="m-0 flex-1 text-sm text-muted-foreground">The preview is open in a separate window.</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => popoutRef.current?.focus()}>
+                <ExternalLink /> Show window
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={dock}>
+                <PanelRightClose /> Bring back
+              </Button>
+            </div>
+          )}
           {selectedFrame ? (
             <>
               <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
@@ -119,23 +147,65 @@ function Workspace() {
           )}
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-4">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-4">
-            <TabsList className="w-full">
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-              <TabsTrigger value="code">Arduino code</TabsTrigger>
-              <TabsTrigger value="memory">Memory</TabsTrigger>
-            </TabsList>
-            <TabsContent value="preview">
-              {tab === 'preview' && <Preview view={previewView} onView={setPreviewView} />}
-            </TabsContent>
-            <TabsContent value="code">{tab === 'code' && <CodeView />}</TabsContent>
-            <TabsContent value="memory">{tab === 'memory' && <MemoryCheck />}</TabsContent>
-          </Tabs>
-        </aside>
+        {!poppedOut && (
+          <aside className="flex min-w-0 flex-col gap-4">
+            {popoutBlocked && (
+              <p className="m-0 text-sm text-destructive">
+                The browser blocked the preview window. Allow pop-ups for this site and try again.
+              </p>
+            )}
+            <Preview view={previewView} onView={setPreviewView} onPopout={popOut} />
+          </aside>
+        )}
       </div>
 
       <FrameList />
+
+      {/* Code and memory are only needed once the designs are done, so they sit
+          at the bottom, collapsed. Both regenerate the sketch on every edit, so
+          only the open one is mounted. */}
+      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="m-0 mr-2 text-sm font-semibold">Export</h3>
+          <Button
+            type="button"
+            variant={output === 'code' ? 'secondary' : 'outline'}
+            onClick={() => toggleOutput('code')}
+          >
+            <Code2 /> Arduino code
+          </Button>
+          <Button
+            type="button"
+            variant={output === 'memory' ? 'secondary' : 'outline'}
+            onClick={() => toggleOutput('memory')}
+          >
+            <Cpu /> Memory
+          </Button>
+          <span className="flex-1" />
+          {output && (
+            <Button type="button" variant="ghost" onClick={() => setOutput(null)}>
+              <ChevronUp /> Hide
+            </Button>
+          )}
+        </div>
+        {output === 'code' && <CodeView />}
+        {output === 'memory' && <MemoryCheck />}
+      </section>
+
+      {/* Outside the aside, so the window stays open wherever the page is scrolled. */}
+      {poppedOut && (
+        <PopoutWindow
+          title={`${project.name || 'Untitled'} · Preview`}
+          onOpen={(win) => (popoutRef.current = win)}
+          onClose={(blocked) => {
+            popoutRef.current = null
+            setPoppedOut(false)
+            setPopoutBlocked(blocked)
+          }}
+        >
+          <Preview popout view={previewView} onView={setPreviewView} onDock={dock} />
+        </PopoutWindow>
+      )}
 
       <AppFooter />
     </div>

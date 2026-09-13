@@ -1,4 +1,4 @@
-import { House } from 'lucide-react'
+import { BookOpen, House } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useOpenProjectFile } from '@/core/navigation'
 import { ThemeToggle } from './ThemeToggle'
@@ -12,11 +12,13 @@ export function AppHeader({
   title,
   subtitle,
   showHome = true,
+  showGuide = true,
   children,
 }: {
   title: ReactNode
   subtitle?: ReactNode
   showHome?: boolean
+  showGuide?: boolean
   children?: ReactNode
 }) {
   const { goHome } = useOpenProjectFile()
@@ -37,6 +39,14 @@ export function AppHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {children}
+        {showGuide && (
+          // A new tab, so the guide can be read beside the editor it describes.
+          <Button asChild variant="ghost">
+            <a href="/guide" target="_blank" rel="noopener" title="How to use this app — English / සිංහල">
+              <BookOpen /> Guide
+            </a>
+          </Button>
+        )}
         <ThemeToggle />
       </div>
     </header>
