@@ -31,9 +31,11 @@ function Workspace() {
   // here and survive a trip to the code tab.
   const [previewView, setPreviewView] = useState<PreviewView>({
     shape: 'fan',
+    dimension: '2d',
     sweep: 270,
     rimFirst: false,
     soloFrame: false,
+    light: false,
   })
 
   useEffect(() => {

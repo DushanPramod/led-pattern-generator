@@ -1,6 +1,7 @@
-import { Pause, Play } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFAULT_LED_COLOR, unlit } from '../lib/colors'
+import { Box, Moon, Pause, Play, Square, Sun } from 'lucide-react'
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { DEFAULT_LED_COLOR, mix, unlit } from '../lib/colors'
+import { ledLayout } from '../lib/layout'
 import { renderTimeline } from '../lib/simulate'
 import { baseSpeedMs } from '../lib/speed'
 import { useProject } from '../state/useProject'
@@ -8,19 +9,52 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
+// three.js is only downloaded once someone actually opens the 3D view.
+const Preview3D = lazy(() => import('./Preview3D'))
+
+/** Keeps a failed 3D download (offline, stale deploy) from taking the page down. */
+class Load3DBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    return this.state.failed ? (
+      <p className="m-0 flex h-[460px] items-center justify-center p-6 text-center text-sm text-muted-foreground">
+        The 3D preview could not be loaded. Check your connection and reload, or switch back to 2D.
+      </p>
+    ) : (
+      this.props.children
+    )
+  }
+}
+
 const SCREEN_BG = '#07090d'
+/** A mid grey: lighter than the screen, but pale LEDs still stand out on it. */
+const LIGHT_BG = '#8b9098'
+
+/** Colours the board is drawn with for each backdrop. */
+function screen(light: boolean) {
+  return light
+    ? { bg: LIGHT_BG, rim: '#6c717a', off: (led: string) => mix(led, LIGHT_BG, 0.78), edge: 'rgba(0,0,0,0.35)' }
+    : { bg: SCREEN_BG, rim: '#1d2532', off: (led: string) => unlit(led, SCREEN_BG), edge: null }
+}
 
 // How the panel is being looked at, as opposed to what it plays. The preview
 // unmounts whenever another tab is open, so this is held by the workspace and
 // handed back in: coming back from the code tab keeps the shape you picked.
 export type PreviewView = {
   shape: 'flat' | 'round' | 'fan'
+  dimension: '2d' | '3d'
   sweep: number
   rimFirst: boolean
   soloFrame: boolean
+  /** Draw the board on a light backdrop instead of the dark screen. */
+  light: boolean
 }
 
 export function Preview({
@@ -38,7 +72,8 @@ export function Preview({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [playing, setPlaying] = useState(false)
   const [rawStep, setStep] = useState(0)
-  const { shape, sweep, rimFirst, soloFrame } = view
+  const { shape, dimension, sweep, rimFirst, soloFrame, light } = view
+  const look = screen(light)
   const set = <K extends keyof PreviewView>(key: K, value: PreviewView[K]) =>
     onView({ ...view, [key]: value })
 
@@ -49,6 +84,9 @@ export function Preview({
     }
     return renderTimeline(project.frames, project.groups, grid, base)
   }, [project.frames, project.groups, grid, base, soloFrame, selectedFrame])
+
+  // Where each LED sits on the board, shared by the 2D and 3D views.
+  const layout = useMemo(() => ledLayout(grid, shape, sweep, rimFirst), [grid, shape, sweep, rimFirst])
 
   // Derived during render so a shrinking timeline never leaves the scrub past the end.
   const step = steps.length === 0 ? 0 : Math.min(rawStep, steps.length - 1)
@@ -79,13 +117,12 @@ export function Preview({
     return () => cancelAnimationFrame(raf)
   }, [playing, steps])
 
-  // Round and fan modes: the panel is bent into a disc — every column becomes a
-  // spoke and every row a ring, which is how the board is physically built. A
-  // fan sweeps less than the full turn, leaving the usual gap at the bottom.
+  // Round and fan modes: the board as the layout places it, every column a
+  // spoke and every row a ring.
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    if (!canvas || !ctx || shape === 'flat') return
+    if (!canvas || !ctx || shape === 'flat' || dimension === '3d') return
     const dpr = window.devicePixelRatio || 1
     const size = 420
     canvas.width = size * dpr
@@ -94,61 +131,50 @@ export function Preview({
     canvas.style.height = `${size}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    ctx.fillStyle = SCREEN_BG
+    const { bg, rim, off: offOf, edge } = screen(light)
+    ctx.fillStyle = bg
     ctx.fillRect(0, 0, size, size)
 
     const cx = size / 2
     const cy = size / 2
     const outer = size / 2 - 8
-    const arc = shape === 'round' ? Math.PI * 2 : (sweep * Math.PI) / 180
-    /*
-     * Every LED is the same size, as on the real board, so the hub hole has to
-     * be wide enough for the innermost ring to hold all the spokes: solving
-     * arc*inner/cols = (outer - inner)/rows for inner puts the gap along a
-     * spoke and the gap between spokes at the same pitch. A narrower fan packs
-     * the same spokes into less arc, so its hub opens up further.
-     */
-    const spread = grid.cols / (arc * grid.rows)
-    const inner = Math.max(outer * 0.12, (outer * spread) / (1 + spread))
-    const ring = (outer - inner) / grid.rows
-    const pitch = Math.min(ring, (arc * inner) / grid.cols)
-    const dot = Math.max(1, pitch * 0.42)
-    // A full turn starts column 1 at the top; a fan is centred on the top, so
-    // the unlit wedge lands at the bottom of the board.
-    const start = shape === 'round' ? -Math.PI / 2 : -Math.PI / 2 - arc / 2
+    const dot = Math.max(1, layout.pitch * outer * 0.42)
     const frameCells = steps[step]?.cells
 
-    ctx.strokeStyle = '#1d2532'
+    ctx.strokeStyle = rim
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.arc(cx, cy, outer + 4, 0, Math.PI * 2)
     ctx.stroke()
 
     for (let r = 0; r < grid.rows; r++) {
-      // Row 0 sits at the hub unless the board is wired the other way round.
-      const ri = rimFirst ? grid.rows - 1 - r : r
-      const radius = inner + (ri + 0.5) * ring
       // The colour belongs to the LEDs on that row, so it follows the row
       // wherever rimFirst puts the ring.
       const led = rowColors[r] ?? DEFAULT_LED_COLOR
-      const off = unlit(led, SCREEN_BG)
+      const off = offOf(led)
       for (let c = 0; c < grid.cols; c++) {
-        const angle = start + ((c + 0.5) / grid.cols) * arc
-        const x = cx + Math.cos(angle) * radius
-        const y = cy + Math.sin(angle) * radius
-        const on = frameCells?.[r * grid.cols + c]
+        const i = r * grid.cols + c
+        const x = cx + layout.positions[i * 2] * outer
+        const y = cy + layout.positions[i * 2 + 1] * outer
+        const on = frameCells?.[i]
         ctx.fillStyle = on ? led : off
         ctx.beginPath()
         ctx.arc(x, y, on ? dot : dot * 0.6, 0, Math.PI * 2)
         ctx.fill()
+        // A thin outline keeps pale lit LEDs (white, yellow) visible on the light backdrop.
+        if (on && edge) {
+          ctx.strokeStyle = edge
+          ctx.lineWidth = 0.75
+          ctx.stroke()
+        }
       }
     }
-  }, [steps, step, grid, rowColors, shape, sweep, rimFirst])
+  }, [steps, step, grid, rowColors, shape, dimension, layout, light])
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    if (!canvas || !ctx || shape !== 'flat') return
+    if (!canvas || !ctx || shape !== 'flat' || dimension === '3d') return
     const cell = Math.max(3, Math.min(12, Math.floor(560 / grid.cols)))
     const dpr = window.devicePixelRatio || 1
     const w = grid.cols * cell
@@ -159,22 +185,35 @@ export function Preview({
     canvas.style.height = `${h}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    ctx.fillStyle = SCREEN_BG
+    const { bg, off: offOf, edge } = screen(light)
+    ctx.fillStyle = bg
     ctx.fillRect(0, 0, w, h)
     const frameCells = steps[step]?.cells
     const radius = Math.max(1, cell / 2 - 0.8)
     for (let r = 0; r < grid.rows; r++) {
       const led = rowColors[r] ?? DEFAULT_LED_COLOR
-      const off = unlit(led, SCREEN_BG)
+      const off = offOf(led)
       for (let c = 0; c < grid.cols; c++) {
-        const on = frameCells?.[r * grid.cols + c]
+        const i = r * grid.cols + c
+        const on = frameCells?.[i]
         ctx.fillStyle = on ? led : off
         ctx.beginPath()
-        ctx.arc(c * cell + cell / 2, r * cell + cell / 2, on ? radius : radius * 0.6, 0, Math.PI * 2)
+        ctx.arc(
+          w / 2 + layout.positions[i * 2] * cell,
+          h / 2 + layout.positions[i * 2 + 1] * cell,
+          on ? radius : radius * 0.6,
+          0,
+          Math.PI * 2,
+        )
         ctx.fill()
+        if (on && edge && radius >= 2) {
+          ctx.strokeStyle = edge
+          ctx.lineWidth = 0.75
+          ctx.stroke()
+        }
       }
     }
-  }, [steps, step, grid, rowColors, shape])
+  }, [steps, step, grid, rowColors, shape, dimension, layout, light])
 
   const current = steps[step]
   // The preview always plays at the speed set under Movement, so this is the
@@ -183,9 +222,32 @@ export function Preview({
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-      <div className="flex justify-center overflow-x-auto rounded-lg border bg-[#07090d] p-3">
-        <canvas ref={canvasRef} />
-      </div>
+      {dimension === '3d' ? (
+        <div className="overflow-hidden rounded-lg border" style={{ background: look.bg }}>
+          <Load3DBoundary>
+            <Suspense
+              fallback={
+                <p className="m-0 flex h-[460px] items-center justify-center text-sm text-muted-foreground">
+                  Loading 3D…
+                </p>
+              }
+            >
+              <Preview3D
+                grid={grid}
+                rowColors={rowColors}
+                cells={current?.cells}
+                layout={layout}
+                shape={shape}
+                background={look.bg}
+              />
+            </Suspense>
+          </Load3DBoundary>
+        </div>
+      ) : (
+        <div className="flex justify-center overflow-x-auto rounded-lg border p-3" style={{ background: look.bg }}>
+          <canvas ref={canvasRef} />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" onClick={() => setPlaying((p) => !p)}>
@@ -199,17 +261,55 @@ export function Preview({
           />
           This frame only
         </Label>
-        <span className="flex-1" />
-        <ToggleGroup
-          type="single"
+        <Button
+          type="button"
           variant="outline"
-          value={shape}
-          onValueChange={(v) => v && set('shape', v as PreviewView['shape'])}
+          aria-pressed={light}
+          title={light ? 'Switch to a dark backdrop' : 'Switch to a gray backdrop'}
+          onClick={() => set('light', !light)}
         >
-          <ToggleGroupItem value="flat">Flat</ToggleGroupItem>
-          <ToggleGroupItem value="round">Round</ToggleGroupItem>
-          <ToggleGroupItem value="fan">Fan</ToggleGroupItem>
-        </ToggleGroup>
+          {light ? <Moon /> : <Sun />} {light ? 'Dark' : 'Gray'}
+        </Button>
+        <span className="flex-1" />
+        {/* How it is drawn and what board it is drawn on are separate choices,
+            so each gets its own label and the view is one joined switch. */}
+        <div className="flex items-center gap-1.5">
+          <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            View
+          </span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            aria-label="View"
+            value={dimension}
+            onValueChange={(v) => v && set('dimension', v as PreviewView['dimension'])}
+          >
+            <ToggleGroupItem value="2d" aria-label="2D view">
+              <Square /> 2D
+            </ToggleGroupItem>
+            <ToggleGroupItem value="3d" aria-label="3D view">
+              <Box /> 3D
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+        <div className="flex items-center gap-1.5">
+          <span className="whitespace-nowrap text-[0.72rem] uppercase tracking-[0.05em] text-muted-foreground">
+            Shape
+          </span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            aria-label="Board shape"
+            value={shape}
+            onValueChange={(v) => v && set('shape', v as PreviewView['shape'])}
+          >
+            <ToggleGroupItem value="flat">Flat</ToggleGroupItem>
+            <ToggleGroupItem value="round">Round</ToggleGroupItem>
+            <ToggleGroupItem value="fan">Fan</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       {shape !== 'flat' && (
@@ -260,6 +360,11 @@ export function Preview({
           ? 'Add a frame to the timeline to preview it.'
           : `Step ${step + 1} / ${steps.length} · ${current?.frameName ?? ''} · ${shownDelay} ms per step`}
       </p>
+      {dimension === '3d' && (
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+          Drag to orbit, scroll to zoom. LEDs fade in and out the way a real lens glows.
+        </p>
+      )}
       {shape !== 'flat' && (
         <p className="m-0 text-xs leading-relaxed text-muted-foreground">
           The {grid.rows} x {grid.cols} panel wrapped into {shape === 'round' ? 'a disc' : 'a fan'}:{' '}
